@@ -1,0 +1,5 @@
+patch:
+  baadbaan_directory: /home/pedram/Projects/baadbaan_new
+  baadbaan_git: "git@10.10.10.26:root/baadbaan_new.git"
+  branch1: "22.1.2"
+  branch2: "22.2" #last_branch

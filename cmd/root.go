@@ -69,8 +69,9 @@ func initConfig() {
 
 		// Search config in home directory with name ".abshar-toolbox" (without extension).
 		viper.AddConfigPath(home)
+		viper.AddConfigPath(".")
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".abshar-toolbox")
+		viper.SetConfigName("abshar-toolbox")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

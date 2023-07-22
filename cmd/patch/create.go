@@ -4,9 +4,11 @@ Copyright © 2023 pedram kousari <persianped@gmail.com>
 package patch
 
 import (
-	"fmt"
+	"log"
 
+	"github.com/pedramkousari/abshar-toolbox/service"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // createCmd represents the create command
@@ -15,7 +17,9 @@ var createCmd = &cobra.Command{
 	Short: "Create Patch",
 	Long: ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("create called")
+		if err:= service.CreatePackage(viper.GetString("patch.baadbaan_directory"),viper.GetString("patch.branch1"), viper.GetString("patch.branch2")).Run(); err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 
