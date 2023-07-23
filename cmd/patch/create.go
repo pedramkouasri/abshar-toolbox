@@ -5,6 +5,7 @@ package patch
 
 import (
 	"log"
+	"sync"
 
 	"github.com/pedramkousari/abshar-toolbox/service"
 	"github.com/spf13/cobra"
@@ -17,9 +18,18 @@ var createCmd = &cobra.Command{
 	Short: "Create Patch",
 	Long: ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err:= service.CreatePackage(viper.GetString("patch.baadbaan_directory"),viper.GetString("patch.branch1"), viper.GetString("patch.branch2")).Run(); err != nil {
-			log.Fatal(err)
-		}
+		var wg sync.WaitGroup;
+
+		wg.Add(1)
+		go func () {
+			defer wg.Done()
+			
+			if err:= service.CreatePackage(viper.GetString("patch.create.baadbaan_directory"),viper.GetString("patch.create.branch1"), viper.GetString("patch.create.branch2"), viper.GetString("patch.create.composer_command")).Run(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		wg.Wait()
 	},
 }
 
