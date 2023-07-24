@@ -2,7 +2,6 @@ package service
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,9 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 )
 
 type createPackage struct {
@@ -202,50 +198,65 @@ func composerChanged() bool {
 
 	return exists
 }
+
 func composerInstall(_ string) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	cmd := exec.Command("docker", "exec", "baadbaan_php_pedram", "composer", "install", "--no-scripts")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	// Define the container ID or name
-	containerID := "baadbaan_php_pedram"
-
-	// Define the command and arguments to execute
-	cmd := []string{"composer", "update", "--no-scripts"}
-
-	// Prepare the exec create options
-	createOptions := types.ExecConfig{
-		Cmd:          cmd,
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          false,
-	}
-
-	// Create the exec instance
-	execCreateResp, err := cli.ContainerExecCreate(context.Background(), containerID, createOptions)
-	if err != nil {
-		panic(err)
-	}
-
-	// Attach to the exec instance
-	execAttachResp, err := cli.ContainerExecAttach(context.Background(), execCreateResp.ID, types.ExecStartCheck{})
-	if err != nil {
-		panic(err)
-	}
-	defer execAttachResp.Close()
-
-	// Read the output from the exec instance
-	output := make([]byte, 4096)
-	_, err = execAttachResp.Reader.Read(output)
-	if err != nil {
-		panic(err)
-	}
-
-	// Print the output
-	fmt.Println(string(output))
+	fmt.Println("Composer install completed successfully.")
 	log.Fatal("END")
 }
+
+// func composerInstall(_ string) {
+// 	cli, err := client.NewClientWithOpts(client.FromEnv)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	// Define the container ID or name
+// 	containerID := "baadbaan_php_pedram"
+
+// 	// Define the command and arguments to execute
+// 	cmd := []string{"composer", "update", "--no-scripts"}
+
+// 	// Prepare the exec create options
+// 	createOptions := types.ExecConfig{
+// 		Cmd:          cmd,
+// 		AttachStdout: true,
+// 		AttachStderr: true,
+// 		Tty:          false,
+// 	}
+
+// 	// Create the exec instance
+// 	execCreateResp, err := cli.ContainerExecCreate(context.Background(), containerID, createOptions)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	// Attach to the exec instance
+// 	execAttachResp, err := cli.ContainerExecAttach(context.Background(), execCreateResp.ID, types.ExecStartCheck{})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer execAttachResp.Close()
+
+// 	// Read the output from the exec instance
+// 	output := make([]byte, 4096)
+// 	_, err = execAttachResp.Reader.Read(output)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	// Print the output
+// 	fmt.Println(string(output))
+// 	log.Fatal("END")
+// }
 
 // func composerInstall(composerCommand string) {
 // 	// cmd := exec.Command("sh", "-c", composerCommand)
