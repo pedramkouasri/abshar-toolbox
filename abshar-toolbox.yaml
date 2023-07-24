@@ -1,6 +1,7 @@
 patch:
   create:
-    baadbaan_directory: /home/pedram/Projects/baadbaan_new
-    branch1: "release_v15.9.14.0"
-    branch2: "22.2" #last_branch
+    baadbaan_directory: /home/pedram/baadbaan-docker/baadbaan_new
+    branch1: "remotes/origin/release_v15.9.14.0"
+    branch2: "remotes/origin/22.2.0" #last_branch
+    composer_command: "docker exec -ti baadbaan_php_pedram composer install --no-scripts --no-interaction"
     # composer_command: "cd /home/pedram/Projects/baadbaan_new && php composer.phar install --no-scripts"
