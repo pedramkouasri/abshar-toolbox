@@ -90,16 +90,16 @@ func (cr * createPackage) GenerateDiffJson () {
 		}
 }
 
-func (cr *createPackage) Run() error {
+func (cr *createPackage) Run() (string,error) {
 	fmt.Println("Started ...")
 
 	if err := cr.fetch(); err != nil {
-		return err
+		return "" , err
 	}
 	fmt.Printf("Fetch Completed \n")
 
 	if err := cr.getDiffComposer(); err != nil {
-		return err
+		return "", err
 	}
 	fmt.Printf("Generated Diff.txt \n")
 
@@ -137,7 +137,7 @@ func (cr *createPackage) Run() error {
 	gzipTarFile()
 	fmt.Printf("GZiped Tar File \n")
 
-	return nil
+	return tempDir+"/patch.tar.gz", nil
 }
 
 func (cr *createPackage) fetch() error {
