@@ -16,18 +16,18 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	packagePathFile string = "./package.json"
-)
-
 // createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create Patch",
+	Use:   "create PATH_OF_PACKAGE.JSON",
+	Short: "Create PATH_OF_PACKAGE.JSON",
 	Long:  ``,
+	Args:  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
+		packagePathFile := args[0]
+
 		if _, err := os.Stat(packagePathFile); err != nil {
-			panic(err)
+			log.Fatal("File Not Exists is Path: %s", packagePathFile)
 		}
 
 		file, err := os.Open(packagePathFile)

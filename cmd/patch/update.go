@@ -20,11 +20,17 @@ import (
 
 // updateCmd represents the update command
 var updateCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Update Patch",
+	Use:   "update PATH",
+	Short: "Update PATH",
 	Long:  ``,
+	Args:  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		fileSrc := "./builds/12.tar.gz.enc"
+		fileSrc := args[0]
+
+		if _, err := os.Stat(fileSrc); err != nil {
+			log.Fatal("File Not Exists is Path: %s", fileSrc)
+		}
 
 		if err := os.Mkdir("./temp", 0755); err != nil {
 			if os.IsNotExist(err) {
@@ -39,6 +45,8 @@ var updateCmd = &cobra.Command{
 		if err := helpers.UntarGzip(strings.TrimSuffix(fileSrc, ".enc"), "./temp"); err != nil {
 			panic(err)
 		}
+
+		packagePathFile := "./temp/package.json"
 
 		if _, err := os.Stat(packagePathFile); err != nil {
 			panic(err)
