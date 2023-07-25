@@ -18,80 +18,61 @@ import (
 
 const (
 	packagePathFile string = "./package.json"
-	key = "e10adc3949ba59abbe56e057f20f883e"
 )
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create Patch",
-	Long: ``,
+	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		if _,err := os.Stat(packagePathFile); err != nil {
+		if _, err := os.Stat(packagePathFile); err != nil {
 			panic(err)
 		}
-		
-
-		// if err:=helpers.EncryptFile([]byte("1111111111111111"), "./builds/archive.tar.gz", "./builds/archive.tar.gz.enc"); err!= nil {
-		// 	panic(err)
-		// }
-
-		// if err:=helpers.DecryptFile([]byte("1111111111111111"), "./builds/archive.tar.gz.enc", "./builds/archive1.tar.gz"); err!= nil {
-		// 	panic(err)
-		// }
-
-		// if err:= helpers.UntarGzip("./builds/archive1.tar.gz", "./builds"); err != nil {
-		// 	panic(err)
-		// }
-
-		// os.Exit(1)
 
 		file, err := os.Open(packagePathFile)
-		if err!= nil {
-			panic(err)	
+		if err != nil {
+			panic(err)
 		}
 
 		pkg := []types.Packages{}
 
 		decoder := json.NewDecoder(file)
 		err = decoder.Decode(&pkg)
-		if err!= nil {
-			log.Fatal(err)			
+		if err != nil {
+			log.Fatal(err)
 		}
-		
+
 		diffPackages := service.GetPackageDiff(pkg)
 
 		ch := make(chan string, len(diffPackages))
-		var pathes []string;
-		
+		var pathes []string = []string{packagePathFile}
+
 		// var wg sync.WaitGroup;
 		for _, packagex := range diffPackages {
 			// wg.Add(1)
 
-			go func (pkg types.CreatePackageParams) {
+			go func(pkg types.CreatePackageParams) {
 				// defer wg.Done()
 
-				
-				directory := viper.GetString(fmt.Sprintf("patch.create.%v.directory",pkg.ServiceName))
-				var cc types.ComposerCommand;
-				if err :=  viper.UnmarshalKey(fmt.Sprintf("patch.create.%v.composer_command",pkg.ServiceName), &cc); err != nil{
+				directory := viper.GetString(fmt.Sprintf("patch.create.%v.directory", pkg.ServiceName))
+				var cc types.ComposerCommand
+				if err := viper.UnmarshalKey(fmt.Sprintf("patch.create.%v.composer_command", pkg.ServiceName), &cc); err != nil {
 					panic(err)
 				}
-				
-				path, err:= service.CreatePackage(directory,pkg.PackageName1,pkg.PackageName2, cc).Run()
+
+				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, cc).Run()
 				if err != nil {
 					log.Fatal(err)
 				}
 
 				ch <- path
 
-
 			}(packagex)
 
 		}
 
-
-		for i:= 0; i< len(diffPackages); i++{
+		for i := 0; i < len(diffPackages); i++ {
 			// select {
 			// 	case path := <-ch:
 			// 		pathes = append(pathes, path)
@@ -109,17 +90,16 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		outputFile := fmt.Sprintf("./builds/%s.tar.gz",pkg[len(pkg) - 1].Version)
+		outputFile := fmt.Sprintf("./builds/%s.tar.gz", pkg[len(pkg)-1].Version)
 
 		if err := helpers.TarGz(pathes, outputFile); err != nil {
 			log.Fatal(err)
 		}
 
-		if err:=helpers.EncryptFile([]byte(key), outputFile, outputFile+".enc"); err!= nil {
+		if err := helpers.EncryptFile([]byte(key), outputFile, outputFile+".enc"); err != nil {
 			log.Fatal(err)
 		}
 
-		
 		if err := os.Remove(outputFile); err != nil {
 			fmt.Println("Error deleting file:", err)
 			return

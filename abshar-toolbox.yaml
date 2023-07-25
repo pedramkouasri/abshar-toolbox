@@ -6,3 +6,15 @@ patch:
         type: docker
         container: baadbaan_php_pedram
         cmd: "composer install --no-scripts"
+  update:
+    baadbaan:
+      directory: /home/pedram/baadbaan-docker/baadbaan_new
+      composer_command:
+        type: docker
+        container: baadbaan_php_pedram
+        cmd: "composer dump-autoload"
+
+      migrate_command:
+        type: docker
+        container: baadbaan_php_pedram
+        cmd: "php artisan migrate --force"

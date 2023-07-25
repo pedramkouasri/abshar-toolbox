@@ -71,30 +71,30 @@ func (cr *createPackage) switchBranch() {
 	}
 }
 
-func (cr * createPackage) GenerateDiffJson () {
+func (cr *createPackage) GenerateDiffJson() {
 
-		file, err := os.Create(tempDir+"/composer-lock-diff.json");
-		if err!=nil {
-			panic(err)
-		}
-		
-		cmd := exec.Command("composer-lock-diff", "--from", "remotes/origin/"+cr.branch1,  "--to" ,"remotes/origin/"+cr.branch2, "--json", "--pretty", "--only-prod")
-		cmd.Stdout = file
-		// cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Dir = cr.directory
+	file, err := os.Create(tempDir + "/composer-lock-diff.json")
+	if err != nil {
+		panic(err)
+	}
 
-		err = cmd.Run()
-		if err != nil {
-			panic(err)
-		}
+	cmd := exec.Command("composer-lock-diff", "--from", "remotes/origin/"+cr.branch1, "--to", "remotes/origin/"+cr.branch2, "--json", "--pretty", "--only-prod")
+	cmd.Stdout = file
+	// cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir = cr.directory
+
+	err = cmd.Run()
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (cr *createPackage) Run() (string,error) {
+func (cr *createPackage) Run() (string, error) {
 	fmt.Println("Started ...")
 
 	if err := cr.fetch(); err != nil {
-		return "" , err
+		return "", err
 	}
 	fmt.Printf("Fetch Completed \n")
 
@@ -122,7 +122,6 @@ func (cr *createPackage) Run() (string,error) {
 			fmt.Printf("Composer Installed \n")
 		}
 
-		
 		cr.GenerateDiffJson()
 		fmt.Printf("Generated Diff Package Composer \n")
 
@@ -137,7 +136,7 @@ func (cr *createPackage) Run() (string,error) {
 	gzipTarFile()
 	fmt.Printf("GZiped Tar File \n")
 
-	return tempDir+"/patch.tar.gz", nil
+	return tempDir + "/patch.tar.gz", nil
 }
 
 func (cr *createPackage) fetch() error {
@@ -219,8 +218,8 @@ func composerChanged() bool {
 func composerInstall(cc types.ComposerCommand, directory string) {
 	var command []string
 	if cc.Type == types.DockerCommandType {
-		command = strings.Fields(fmt.Sprintf("docker exec %s %s",cc.Container,cc.Cmd))
-	}else{
+		command = strings.Fields(fmt.Sprintf("docker exec %s %s", cc.Container, cc.Cmd))
+	} else {
 		command = strings.Fields(cc.Cmd)
 	}
 

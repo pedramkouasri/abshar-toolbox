@@ -4,18 +4,91 @@ Copyright © 2023 pedram kousari <persianped@gmail.com>
 package patch
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"strings"
+	"sync"
 
+	"github.com/pedramkousari/abshar-toolbox/helpers"
+	"github.com/pedramkousari/abshar-toolbox/service"
+	"github.com/pedramkousari/abshar-toolbox/types"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // updateCmd represents the update command
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update Patch",
-	Long: ``,
+	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("update called")
+		fileSrc := "./builds/12.tar.gz.enc"
+
+		if err := os.Mkdir("./temp", 0755); err != nil {
+			if os.IsNotExist(err) {
+				panic(err)
+			}
+		}
+
+		if err := helpers.DecryptFile([]byte(key), fileSrc, strings.TrimSuffix(fileSrc, ".enc")); err != nil {
+			panic(err)
+		}
+
+		if err := helpers.UntarGzip(strings.TrimSuffix(fileSrc, ".enc"), "./temp"); err != nil {
+			panic(err)
+		}
+
+		if _, err := os.Stat(packagePathFile); err != nil {
+			panic(err)
+		}
+
+		file, err := os.Open(packagePathFile)
+		if err != nil {
+			panic(err)
+		}
+
+		pkg := []types.Packages{}
+
+		decoder := json.NewDecoder(file)
+		err = decoder.Decode(&pkg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		diffPackages := service.GetPackageDiff(pkg)
+
+		var wg sync.WaitGroup
+		for _, packagex := range diffPackages {
+			wg.Add(1)
+
+			go func(pkg types.CreatePackageParams) {
+				defer wg.Done()
+
+				directory := viper.GetString(fmt.Sprintf("patch.update.%v.directory", pkg.ServiceName))
+
+				var cc types.ComposerCommand
+				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.composer_command", pkg.ServiceName), &cc); err != nil {
+					panic(err)
+				}
+
+				var mc types.ComposerCommand
+				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.migrate_command", pkg.ServiceName), &mc); err != nil {
+					panic(err)
+				}
+
+				err := service.UpdatePackage(directory, cc, types.MigrateCommand(mc)).Run()
+				if err != nil {
+					log.Fatal(err)
+				}
+
+			}(packagex)
+
+		}
+
+		wg.Wait()
+
 	},
 }
 

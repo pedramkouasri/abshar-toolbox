@@ -7,11 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const key = "e10adc3949ba59abbe56e057f20f883e"
+
 // patchCmd represents the patch command
 var PatchCmd = &cobra.Command{
 	Use:   "patch",
 	Short: "Create Or Update Patch",
-	Long: ``,
+	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},

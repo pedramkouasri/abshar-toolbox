@@ -1,14 +1,20 @@
 package types
 
-type CommandType string;
+type CommandType string
 
-const(
+const (
 	DockerCommandType CommandType = "docker"
-	ShellCommandType CommandType = "shell"
+	ShellCommandType  CommandType = "shell"
 )
 
 type ComposerCommand struct {
-	Type CommandType `yaml:type`
-	Container string `yaml:container`
-	Cmd     string `yaml:cmd`
+	Type      CommandType `yaml:type`
+	Container string      `yaml:container`
+	Cmd       string      `yaml:cmd`
+}
+
+type MigrateCommand struct {
+	Type      CommandType `yaml:type`
+	Container string      `yaml:container`
+	Cmd       string      `yaml:cmd`
 }
