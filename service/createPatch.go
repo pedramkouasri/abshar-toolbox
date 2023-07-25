@@ -9,13 +9,15 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/pedramkousari/abshar-toolbox/types"
 )
 
 type createPackage struct {
 	directory       string
 	branch1         string
 	branch2         string
-	composerCommand string
+	composerCommand types.ComposerCommand
 }
 
 var currentDirectory string
@@ -36,7 +38,7 @@ func init() {
 	}
 }
 
-func CreatePackage(srcDirectory string, branch1 string, branch2 string, composerCommand string) *createPackage {
+func CreatePackage(srcDirectory string, branch1 string, branch2 string, composerCommand types.ComposerCommand) *createPackage {
 
 	if srcDirectory == "" {
 		log.Fatal("src directory not initialized")
@@ -69,8 +71,27 @@ func (cr *createPackage) switchBranch() {
 	}
 }
 
+func (cr * createPackage) GenerateDiffJson () {
+
+		file, err := os.Create(tempDir+"/composer-lock-diff.json");
+		if err!=nil {
+			panic(err)
+		}
+		
+		cmd := exec.Command("composer-lock-diff", "--from", "remotes/origin/"+cr.branch1,  "--to" ,"remotes/origin/"+cr.branch2, "--json", "--pretty", "--only-prod")
+		cmd.Stdout = file
+		// cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Dir = cr.directory
+
+		err = cmd.Run()
+		if err != nil {
+			panic(err)
+		}
+}
+
 func (cr *createPackage) Run() error {
-	composerInstall(cr.composerCommand)
+	fmt.Println("Started ...")
 
 	if err := cr.fetch(); err != nil {
 		return err
@@ -93,21 +114,17 @@ func (cr *createPackage) Run() error {
 	if composerChanged() {
 		fmt.Printf("Composer Is Change \n")
 
-		if cr.composerCommand != "" {
+		if cr.composerCommand.Cmd != "" {
 			cr.switchBranch()
 			fmt.Printf("Branch Swiched  \n")
 
-			fmt.Printf("Composer Install \n")
-			composerInstall(cr.composerCommand)
+			composerInstall(cr.composerCommand, cr.directory)
 			fmt.Printf("Composer Installed \n")
 		}
 
-		// cmd := exec.Command("sh", "-c", fmt.Sprintf("cd %s && composer-lock-diff  --from %s  --to %s --json --pretty --only-prod > %s/composer-lock-diff.json", cr.directory, cr.branch1, cr.branch2, tempDir))
-
-		// _, err := cmd.Output()
-		// if err != nil {
-		// 	return err
-		// }
+		
+		cr.GenerateDiffJson()
+		fmt.Printf("Generated Diff Package Composer \n")
 
 		addDiffPackageToTarFile(cr.directory)
 		fmt.Printf("Added Diff Packages To Tar File \n")
@@ -135,7 +152,7 @@ func (cr *createPackage) fetch() error {
 
 func (cr *createPackage) getDiffComposer() error {
 	// git diff --name-only --diff-filter=ACMR {lastTag} {current_tag} > diff.txt'
-	cmd := exec.Command("git", "diff", "--name-only", "--diff-filter", "ACMR", cr.branch1, cr.branch2)
+	cmd := exec.Command("git", "diff", "--name-only", "--diff-filter", "ACMR", "remotes/origin/"+cr.branch1, "remotes/origin/"+cr.branch2)
 
 	cmd.Dir = cr.directory
 
@@ -199,18 +216,23 @@ func composerChanged() bool {
 	return exists
 }
 
-func composerInstall(_ string) {
-	cmd := exec.Command("docker", "exec", "baadbaan_php_pedram", "composer", "install", "--no-scripts")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+func composerInstall(cc types.ComposerCommand, directory string) {
+	var command []string
+	if cc.Type == types.DockerCommandType {
+		command = strings.Fields(fmt.Sprintf("docker exec %s %s",cc.Container,cc.Cmd))
+	}else{
+		command = strings.Fields(cc.Cmd)
+	}
+
+	cmd := exec.Command(command[0], command[1:]...)
+	// cmd.Stdout = nil
+	// cmd.Stderr = os.Stderr
+	cmd.Dir = directory
 
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-
-	fmt.Println("Composer install completed successfully.")
-	log.Fatal("END")
 }
 
 // func composerInstall(_ string) {

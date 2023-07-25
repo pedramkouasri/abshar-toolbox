@@ -1,0 +1,21 @@
+[
+  {
+    "version": "10",
+    "package_version": {
+      "baadbaan": "v11.10.0",
+      "technical": "v1.1.0"
+    }
+  },
+  {
+    "version": "11",
+    "package_version": {
+      "baadbaan": "release_v15.9.14.0"
+    }
+  },
+  {
+    "version": "12",
+    "package_version": {
+      "baadbaan": "22.2.0"
+    }
+  }
+]
