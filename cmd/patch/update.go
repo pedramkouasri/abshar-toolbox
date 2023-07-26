@@ -4,6 +4,7 @@ Copyright © 2023 pedram kousari <persianped@gmail.com>
 package patch
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -85,8 +86,19 @@ var updateCmd = &cobra.Command{
 				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.migrate_command", pkg.ServiceName), &mc); err != nil {
 					panic(err)
 				}
+				
+				var sc types.Command
+				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.sql_dump_command", pkg.ServiceName), &sc); err != nil {
+					panic(err)
+				}
 
-				err := service.UpdatePackage(directory, cc, types.Command(mc)).Run()
+				ctx := context.WithValue(context.Background(), "information", map[string]string{
+					"version": packagex.PackageName2,
+					"serviceName": packagex.ServiceName,
+				})
+				
+
+				err := service.UpdatePackage(directory, cc, mc, sc).Run(ctx)
 				if err != nil {
 					log.Fatal(err)
 				}

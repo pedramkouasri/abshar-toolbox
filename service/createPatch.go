@@ -93,9 +93,7 @@ func (cr *createPackage) GenerateDiffJson() {
 	}
 }
 
-func loading(ctx context.Context) func(state int) {
-	serviceName := ctx.Value("serviceName")
-	
+func loading(serviceName string) func(state int) {	
 	return func (state int) {
 		fmt.Print("\r",serviceName,":[")
 		for j := 0; j <= state; j++ {
@@ -110,7 +108,7 @@ func loading(ctx context.Context) func(state int) {
 
 func (cr *createPackage) Run(ctx context.Context) (string, error) {
 	// fmt.Println("Started ...")
-	progress := loading(ctx)
+	progress := loading(ctx.Value("serviceName").(string))
 	
 	progress(0)
 
@@ -252,7 +250,7 @@ func composerChanged() bool {
 	return exists
 }
 
-func composerInstall(cc types.ComposerCommand, directory string) {
+func composerInstall(cc types.Command, directory string) {
 	var command []string
 	if cc.Type == types.DockerCommandType {
 		command = strings.Fields(fmt.Sprintf("docker exec %s %s", cc.Container, cc.Cmd))
