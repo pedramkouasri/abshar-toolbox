@@ -4,10 +4,12 @@ Copyright © 2023 pedram kousari <persianped@gmail.com>
 package patch
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/pedramkousari/abshar-toolbox/helpers"
 	"github.com/pedramkousari/abshar-toolbox/service"
@@ -56,17 +58,23 @@ var createCmd = &cobra.Command{
 				// defer wg.Done()
 
 				directory := viper.GetString(fmt.Sprintf("patch.create.%v.directory", pkg.ServiceName))
-				var cc types.ComposerCommand
+				var cc types.Command
 				if err := viper.UnmarshalKey(fmt.Sprintf("patch.create.%v.composer_command", pkg.ServiceName), &cc); err != nil {
 					panic(err)
 				}
 
-				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, cc).Run()
+				ctx := context.WithValue(context.Background(), "serviceName", packagex.ServiceName)
+				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, cc).Run(ctx)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				ch <- path
+				newPath := strings.ReplaceAll(path,"patch", packagex.ServiceName)
+				if err:= os.Rename(path, newPath); err!=nil {
+					log.Fatal(err)
+				}
+
+				ch <- newPath
 
 			}(packagex)
 
@@ -80,8 +88,6 @@ var createCmd = &cobra.Command{
 
 			pathes = append(pathes, <-ch)
 		}
-
-		fmt.Println(pathes)
 
 		err = os.Mkdir("./builds", 0755)
 		if err != nil {
@@ -105,7 +111,7 @@ var createCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Println("Completed :)")
+		fmt.Println("\nCompleted :)")
 
 		// wg.Wait()
 	},

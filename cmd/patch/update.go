@@ -76,17 +76,17 @@ var updateCmd = &cobra.Command{
 
 				directory := viper.GetString(fmt.Sprintf("patch.update.%v.directory", pkg.ServiceName))
 
-				var cc types.ComposerCommand
+				var cc types.Command
 				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.composer_command", pkg.ServiceName), &cc); err != nil {
 					panic(err)
 				}
 
-				var mc types.ComposerCommand
+				var mc types.Command
 				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.migrate_command", pkg.ServiceName), &mc); err != nil {
 					panic(err)
 				}
 
-				err := service.UpdatePackage(directory, cc, types.MigrateCommand(mc)).Run()
+				err := service.UpdatePackage(directory, cc, types.Command(mc)).Run()
 				if err != nil {
 					log.Fatal(err)
 				}

@@ -18,3 +18,8 @@ patch:
         type: docker
         container: baadbaan_php_pedram
         cmd: "php artisan migrate --force"
+
+      sql_dump:
+        type: docker
+        container: baadbaan_db_pedram
+        cmd: "mariadb-dump -u root -p'secret' baadbaan_new"

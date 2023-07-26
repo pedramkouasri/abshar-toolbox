@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,11 +18,13 @@ type createPackage struct {
 	directory       string
 	branch1         string
 	branch2         string
-	composerCommand types.ComposerCommand
+	composerCommand types.Command
 }
 
 var currentDirectory string
 var tempDir string
+
+var excludePath = []string{".env", "vmanager.json"}
 
 func init() {
 	currentDirectory, _ = os.Getwd()
@@ -38,7 +41,7 @@ func init() {
 	}
 }
 
-func CreatePackage(srcDirectory string, branch1 string, branch2 string, composerCommand types.ComposerCommand) *createPackage {
+func CreatePackage(srcDirectory string, branch1 string, branch2 string, composerCommand types.Command) *createPackage {
 
 	if srcDirectory == "" {
 		log.Fatal("src directory not initialized")
@@ -90,18 +93,40 @@ func (cr *createPackage) GenerateDiffJson() {
 	}
 }
 
-func (cr *createPackage) Run() (string, error) {
-	fmt.Println("Started ...")
+func loading(ctx context.Context) func(state int) {
+	serviceName := ctx.Value("serviceName")
+	
+	return func (state int) {
+		fmt.Print("\r",serviceName,":[")
+		for j := 0; j <= state; j++ {
+			fmt.Print("=")
+		}
+		for j := state + 1; j <= 10; j++ {
+			fmt.Print(" ")
+		}
+		fmt.Print("] ", state * 10, "%")
+	} 
+}
+
+func (cr *createPackage) Run(ctx context.Context) (string, error) {
+	// fmt.Println("Started ...")
+	progress := loading(ctx)
+	
+	progress(0)
 
 	if err := cr.fetch(); err != nil {
 		return "", err
 	}
-	fmt.Printf("Fetch Completed \n")
+
+	progress(1)
 
 	if err := cr.getDiffComposer(); err != nil {
 		return "", err
 	}
-	fmt.Printf("Generated Diff.txt \n")
+	progress(2)
+	// fmt.Printf("Generated Diff.txt \n")
+
+
 
 	// err := os.Chdir(cr.directory)
 	// if err != nil {
@@ -109,32 +134,40 @@ func (cr *createPackage) Run() (string, error) {
 	// }
 
 	createTarFile(cr.directory)
-	fmt.Printf("Created Tar File \n")
+	progress(3)
+	// fmt.Printf("Created Tar File \n")
 
 	if composerChanged() {
-		fmt.Printf("Composer Is Change \n")
+		// fmt.Printf("Composer Is Change \n")
 
+		progress(4)
 		if cr.composerCommand.Cmd != "" {
 			cr.switchBranch()
-			fmt.Printf("Branch Swiched  \n")
-
+			// fmt.Printf("Branch Swiched  \n")
+			progress(5)
 			composerInstall(cr.composerCommand, cr.directory)
-			fmt.Printf("Composer Installed \n")
+			// fmt.Printf("Composer Installed \n")
 		}
 
+		progress(6)
 		cr.GenerateDiffJson()
-		fmt.Printf("Generated Diff Package Composer \n")
+		// fmt.Printf("Generated Diff Package Composer \n")
 
+		progress(7)
 		addDiffPackageToTarFile(cr.directory)
-		fmt.Printf("Added Diff Packages To Tar File \n")
+		// fmt.Printf("Added Diff Packages To Tar File \n")
 
 	}
 
+	progress(8)
+
 	copyTarFileToTempDirectory(cr.directory)
-	fmt.Printf("Moved Tar File \n")
+	// fmt.Printf("Moved Tar File \n")
+	progress(9)
 
 	gzipTarFile()
-	fmt.Printf("GZiped Tar File \n")
+	// fmt.Printf("GZiped Tar File \n")
+	progress(10)
 
 	return tempDir + "/patch.tar.gz", nil
 }
@@ -158,6 +191,10 @@ func (cr *createPackage) getDiffComposer() error {
 	res, err := cmd.Output()
 	if err != nil {
 		return err
+	}
+
+	for _, path := range excludePath {
+		res = []byte(strings.ReplaceAll(string(res), path, ""))
 	}
 
 	ioutil.WriteFile(tempDir+"/diff.txt", res, 0666)
