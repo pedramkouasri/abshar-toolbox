@@ -119,7 +119,7 @@ func backupFileWithGit(dir string, version string){
 	var output []byte
 	stdOut := bytes.NewBuffer(output)
 
-	cmd := exec.Command("git", "diff")
+	cmd := exec.Command("git", "diff" , "--name-only")
 	cmd.Dir = dir
 	cmd.Stdout = stdOut
 
@@ -128,20 +128,22 @@ func backupFileWithGit(dir string, version string){
 		panic(err)
 	}
 
-	if len(output) != 0 {
+	if stdOut.Len() > 0 {
 		createBranch(dir, version)
 		gitAdd(dir, version)
 		gitCommit(dir, version)
 	}
 }
 
-func createBranch(dir string, version string) error {
-	cmd := exec.Command("git",fmt.Sprintf("checkout -b patch-before-update-%s-%s", version, current_time))
+func createBranch(dir string, version string) {
+	cmd := exec.Command("git",strings.Fields(fmt.Sprintf("checkout -b patch-before-update-%s-%d", version, current_time.Unix()))...)
+	
+	cmd.Stdout = nil
+
 	cmd.Dir = dir
-	if _, err := cmd.Output();err != nil {
-		return err
+	if err := cmd.Run();err != nil {
+		panic(err)
 	}
-	return nil
 }
 
 
@@ -155,29 +157,36 @@ func gitAdd(dir string, version string) {
 
 func gitCommit(dir string, version string) {
 
-	exportCmd := exec.Command("export", "HOME=/tmp")
-	exportCmd.Stdout = os.Stdout
-	exportCmd.Stderr = os.Stderr
-	err := exportCmd.Run()
+	err := os.Setenv("HOME", "/tmp")
 	if err != nil {
-		fmt.Println("Error exporting command:", err)
+		fmt.Println("Error setting environment variable:", err)
 		return
 	}
 
 	cmd := exec.Command("git", "config", "--global", "user.email", "persianped@gmail.com")
-	if _, err := cmd.Output();err != nil {
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run();err != nil {
 		panic(err)
 	}
 
 	cmd = exec.Command("git", "config", "--global", "user.name", "pedram kousari")
-	if _, err := cmd.Output();err != nil {
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run();err != nil {
 		panic(err)
 	}
 
 
-	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("backup befor update patch %s time: %s", version, current_time))
+	cmd = exec.Command("git", "config", "--global", "--add","safe.directory", dir)
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run();err != nil {
+		panic(err)
+	}
+
+
+	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("backup befor update patch %s time: %d", version, current_time.Unix()))
+	cmd.Stderr = os.Stderr
 	cmd.Dir = dir
-	if _, err := cmd.Output();err != nil {
+	if err := cmd.Run();err != nil {
 		panic(err)
 	}
 }
