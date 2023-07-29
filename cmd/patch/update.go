@@ -109,6 +109,8 @@ var updateCmd = &cobra.Command{
 
 		wg.Wait()
 
+		fmt.Println("\nCompleted :)")
+
 	},
 }
 

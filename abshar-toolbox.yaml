@@ -22,4 +22,4 @@ patch:
       sql_dump_command:
         type: docker
         container: baadbaan_db_pedram
-        cmd: "mariadb-dump -u root -p'secret' baadbaan_new"
+        cmd: mariadb-dump -u baadbaan -p'secret' baadbaan

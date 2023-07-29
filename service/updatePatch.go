@@ -201,15 +201,16 @@ func backupDatabase(mc types.Command, directory string, serviceName string) {
 	defer file.Close()
 
 
-	var command []string
+	var command string
 	if mc.Type == types.DockerCommandType {
-		command = strings.Fields(fmt.Sprintf("docker exec %s %s", mc.Container, mc.Cmd))
+		command = fmt.Sprintf(`docker exec %s %s`, mc.Container, mc.Cmd)
 	} else {
-		command = strings.Fields(mc.Cmd)
+		command = mc.Cmd
 	}
 
-	cmd := exec.Command(command[0], command[1:]...)
+	cmd := exec.Command("sh", "-c", command)
 	cmd.Stdout = file
+	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
 	cmd.Dir = directory
 
@@ -220,7 +221,6 @@ func backupDatabase(mc types.Command, directory string, serviceName string) {
 }
 
 func extractTarFile(serviceName string, dir string){
-	fmt.Println("tar -zxf ./temp/"+serviceName+".tar.gz -C "+dir)
 	cmd := exec.Command("tar", "-zxf", "./temp/"+serviceName+".tar.gz", "-C", dir)
 	cmd.Stderr = os.Stderr
 	
