@@ -21,10 +21,10 @@ import (
 
 // updateCmd represents the update command
 var updateCmd = &cobra.Command{
-	Use:   "update PATH",
-	Short: "Update PATH",
-	Long:  ``,
-	Args:  cobra.ExactArgs(1),
+	Use:                   "update PATH",
+	Short:                 "Update PATH",
+	Long:                  ``,
+	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		fileSrc := args[0]
@@ -33,85 +33,73 @@ var updateCmd = &cobra.Command{
 			log.Fatal("File Not Exists is Path: %s", fileSrc)
 		}
 
-		if err := os.Mkdir("./temp", 0755); err != nil {
-			if os.IsNotExist(err) {
-				panic(err)
-			}
-		}
-
-		if err := helpers.DecryptFile([]byte(key), fileSrc, strings.TrimSuffix(fileSrc, ".enc")); err != nil {
-			panic(err)
-		}
-
-		if err := helpers.UntarGzip(strings.TrimSuffix(fileSrc, ".enc"), "./temp"); err != nil {
-			panic(err)
-		}
-
-		packagePathFile := "./temp/package.json"
-
-		if _, err := os.Stat(packagePathFile); err != nil {
-			panic(err)
-		}
-
-		file, err := os.Open(packagePathFile)
-		if err != nil {
-			panic(err)
-		}
-
-		pkg := []types.Packages{}
-
-		decoder := json.NewDecoder(file)
-		err = decoder.Decode(&pkg)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		diffPackages := service.GetPackageDiff(pkg)
-
-		var wg sync.WaitGroup
-		for _, packagex := range diffPackages {
-			wg.Add(1)
-
-			go func(pkg types.CreatePackageParams) {
-				defer wg.Done()
-
-				directory := viper.GetString(fmt.Sprintf("patch.update.%v.directory", pkg.ServiceName))
-
-				var cc types.Command
-				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.composer_command", pkg.ServiceName), &cc); err != nil {
-					panic(err)
-				}
-
-				var mc types.Command
-				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.migrate_command", pkg.ServiceName), &mc); err != nil {
-					panic(err)
-				}
-				
-				var sc types.Command
-				if err := viper.UnmarshalKey(fmt.Sprintf("patch.update.%v.sql_dump_command", pkg.ServiceName), &sc); err != nil {
-					panic(err)
-				}
-
-				ctx := context.WithValue(context.Background(), "information", map[string]string{
-					"version": packagex.PackageName2,
-					"serviceName": packagex.ServiceName,
-				})
-				
-
-				err := service.UpdatePackage(directory, cc, mc, sc).Run(ctx)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-			}(packagex)
-
-		}
-
-		wg.Wait()
-
-		fmt.Println("\nCompleted :)")
-
+		UpdateCommand(fileSrc)
 	},
+}
+
+func UpdateCommand(fileSrc string) {
+	if err := os.Mkdir("./temp", 0755); err != nil {
+		if os.IsNotExist(err) {
+			panic(err)
+		}
+	}
+
+	if err := helpers.DecryptFile([]byte(key), fileSrc, strings.TrimSuffix(fileSrc, ".enc")); err != nil {
+		panic(err)
+	}
+
+	if err := helpers.UntarGzip(strings.TrimSuffix(fileSrc, ".enc"), "./temp"); err != nil {
+		panic(err)
+	}
+
+	packagePathFile := "./temp/package.json"
+
+	if _, err := os.Stat(packagePathFile); err != nil {
+		panic(err)
+	}
+
+	file, err := os.Open(packagePathFile)
+	if err != nil {
+		panic(err)
+	}
+
+	pkg := []types.Packages{}
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&pkg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	diffPackages := service.GetPackageDiff(pkg)
+
+	var wg sync.WaitGroup
+	for _, packagex := range diffPackages {
+		wg.Add(1)
+
+		go func(pkg types.CreatePackageParams) {
+			defer wg.Done()
+
+			directory := viper.GetString(fmt.Sprintf("patch.update.%v.directory", pkg.ServiceName))
+
+			ctx := context.WithValue(context.Background(), "information", map[string]string{
+				"version":     packagex.PackageName2,
+				"serviceName": packagex.ServiceName,
+			})
+
+			conf := helpers.LoadEnv(directory)
+			err := service.UpdatePackage(directory, conf).Run(ctx)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+		}(packagex)
+
+	}
+
+	wg.Wait()
+
+	fmt.Println("\nCompleted :)")
 }
 
 func init() {

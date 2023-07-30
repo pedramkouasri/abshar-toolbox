@@ -7,5 +7,8 @@ build-server: build
 create:
 	go run main.go patch create ./package.json
 
+run:
+	go run main.go serve
+
 update:
 	go run main.go patch update ./builds/12.tar.gz.enc

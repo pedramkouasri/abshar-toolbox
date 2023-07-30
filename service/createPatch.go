@@ -11,14 +11,15 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/pedramkousari/abshar-toolbox/helpers"
 	"github.com/pedramkousari/abshar-toolbox/types"
 )
 
 type createPackage struct {
-	directory       string
-	branch1         string
-	branch2         string
-	composerCommand types.Command
+	directory string
+	branch1   string
+	branch2   string
+	config    *helpers.ConfigService
 }
 
 var currentDirectory string
@@ -41,7 +42,7 @@ func init() {
 	}
 }
 
-func CreatePackage(srcDirectory string, branch1 string, branch2 string, composerCommand types.Command) *createPackage {
+func CreatePackage(srcDirectory string, branch1 string, branch2 string, cnf *helpers.ConfigService) *createPackage {
 
 	if srcDirectory == "" {
 		log.Fatal("src directory not initialized")
@@ -58,10 +59,10 @@ func CreatePackage(srcDirectory string, branch1 string, branch2 string, composer
 	createTempDirectory(srcDirectory)
 
 	return &createPackage{
-		directory:       srcDirectory,
-		branch1:         branch1,
-		branch2:         branch2,
-		composerCommand: composerCommand,
+		directory: srcDirectory,
+		branch1:   branch1,
+		branch2:   branch2,
+		config:    cnf,
 	}
 }
 
@@ -93,23 +94,23 @@ func (cr *createPackage) GenerateDiffJson() {
 	}
 }
 
-func loading(serviceName string) func(state int) {	
-	return func (state int) {
-		fmt.Print("\r",serviceName,":[")
+func loading(serviceName string) func(state int) {
+	return func(state int) {
+		fmt.Print("\r", serviceName, ":[")
 		for j := 0; j <= state; j++ {
 			fmt.Print("=")
 		}
 		for j := state + 1; j <= 10; j++ {
 			fmt.Print(" ")
 		}
-		fmt.Print("] ", state * 10, "%")
-	} 
+		fmt.Print("] ", state*10, "%")
+	}
 }
 
 func (cr *createPackage) Run(ctx context.Context) (string, error) {
 	// fmt.Println("Started ...")
 	progress := loading(ctx.Value("serviceName").(string))
-	
+
 	progress(0)
 
 	if err := cr.fetch(); err != nil {
@@ -124,8 +125,6 @@ func (cr *createPackage) Run(ctx context.Context) (string, error) {
 	progress(2)
 	// fmt.Printf("Generated Diff.txt \n")
 
-
-
 	// err := os.Chdir(cr.directory)
 	// if err != nil {
 	// 	log.Fatal(err)
@@ -139,13 +138,13 @@ func (cr *createPackage) Run(ctx context.Context) (string, error) {
 		// fmt.Printf("Composer Is Change \n")
 
 		progress(4)
-		if cr.composerCommand.Cmd != "" {
-			cr.switchBranch()
-			// fmt.Printf("Branch Swiched  \n")
-			progress(5)
-			composerInstall(cr.composerCommand, cr.directory)
-			// fmt.Printf("Composer Installed \n")
-		}
+
+		cr.switchBranch()
+		// fmt.Printf("Branch Swiched  \n")
+		progress(5)
+
+		composerInstall(cr.directory, cr.config)
+		// fmt.Printf("Composer Installed \n")
 
 		progress(6)
 		cr.GenerateDiffJson()
@@ -250,14 +249,9 @@ func composerChanged() bool {
 	return exists
 }
 
-func composerInstall(cc types.Command, directory string) {
-	var command []string
-	if cc.Type == types.DockerCommandType {
-		command = strings.Fields(fmt.Sprintf("docker exec %s %s", cc.Container, cc.Cmd))
-	} else {
-		command = strings.Fields(cc.Cmd)
-	}
+func composerInstall(directory string, cnf *helpers.ConfigService) {
 
+	command := getCommand(composerInstallCommand, cnf)
 	cmd := exec.Command(command[0], command[1:]...)
 	// cmd.Stdout = nil
 	// cmd.Stderr = os.Stderr
@@ -268,71 +262,6 @@ func composerInstall(cc types.Command, directory string) {
 		panic(err)
 	}
 }
-
-// func composerInstall(_ string) {
-// 	cli, err := client.NewClientWithOpts(client.FromEnv)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	// Define the container ID or name
-// 	containerID := "baadbaan_php_pedram"
-
-// 	// Define the command and arguments to execute
-// 	cmd := []string{"composer", "update", "--no-scripts"}
-
-// 	// Prepare the exec create options
-// 	createOptions := types.ExecConfig{
-// 		Cmd:          cmd,
-// 		AttachStdout: true,
-// 		AttachStderr: true,
-// 		Tty:          false,
-// 	}
-
-// 	// Create the exec instance
-// 	execCreateResp, err := cli.ContainerExecCreate(context.Background(), containerID, createOptions)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	// Attach to the exec instance
-// 	execAttachResp, err := cli.ContainerExecAttach(context.Background(), execCreateResp.ID, types.ExecStartCheck{})
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer execAttachResp.Close()
-
-// 	// Read the output from the exec instance
-// 	output := make([]byte, 4096)
-// 	_, err = execAttachResp.Reader.Read(output)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	// Print the output
-// 	fmt.Println(string(output))
-// 	log.Fatal("END")
-// }
-
-// func composerInstall(composerCommand string) {
-// 	// cmd := exec.Command("sh", "-c", composerCommand)
-
-// 	cmd := exec.Command("/bin/sh", "-c", "docker exec -ti baadbaan_php_pedram ls -la")
-// 	res, err := cmd.Output()
-// 	if err != nil {
-// 		log.Fatal(err.Error())
-// 	}
-
-// 	fmt.Println(string(res))
-
-// 	cmd = exec.Command("docker", "exec", "-ti", "baadbaan_php_pedram", "composer", "install", "--no-scripts", "--no-interaction")
-// 	fmt.Println("docker", "exec", "-ti", "baadbaan_php_pedram", "composer", "install", "--no-scripts", "--no-interaction")
-// 	res, err = cmd.Output()
-// 	if err != nil {
-// 		fmt.Println(string(res))
-// 		log.Fatal(err.Error())
-// 	}
-// }
 
 func addDiffPackageToTarFile(directory string) {
 	for packageName := range getDiffPackages() {
@@ -351,28 +280,7 @@ func getDiffPackages() map[string][]string {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer file.Close()
-
-	// 	file := bytes.NewBufferString(`{
-	// 	"changes": {
-	// 		"abshar/acunetix-baadbaan": ["fd3197e", "REMOVED", ""],
-	// 		"abshar/goals-relation": ["49bcb86", "REMOVED", ""],
-	// 		"abshar/process_management": ["5804c6d", "REMOVED", ""],
-	// 		"aws/aws-crt-php": ["v1.2.1", "REMOVED", ""],
-	// 		"aws/aws-sdk-php": [
-	// 		"3.275.5",
-	// 		"3.171.19",
-	// 		"https://github.com/aws/aws-sdk-php/compare/3.275.5...3.171.19"
-	// 		],
-	// 		"vlucas/phpdotenv": [
-	// 		"v2.6.9",
-	// 		"v2.6.6",
-	// 		"https://github.com/vlucas/phpdotenv/compare/v2.6.9...v2.6.6"
-	// 		]
-	// 	}
-	// 	}
-	// `)
 
 	type ChangesType struct {
 		Changes map[string][]string `json:"changes"`
@@ -411,4 +319,29 @@ func createTempDirectory(directory string) {
 			log.Fatalln(err)
 		}
 	}
+}
+
+func getCommand(cmd string, cnf *helpers.ConfigService) []string {
+	containerName, _ := cnf.Get("CONTAINER_NAME")
+	commandType := getCommandType(cnf)
+
+	var command []string
+	if commandType == types.DockerCommandType {
+		command = strings.Fields(fmt.Sprintf("docker exec %s %s", containerName, cmd))
+	} else {
+		command = strings.Fields(cmd)
+	}
+
+	return command
+}
+
+func getCommandType(cnf *helpers.ConfigService) types.CommandType {
+	containerName, _ := cnf.Get("CONTAINER_NAME")
+	commandType := types.ShellCommandType
+
+	if containerName != "" {
+		commandType = types.DockerCommandType
+	}
+
+	return commandType
 }

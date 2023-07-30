@@ -13,30 +13,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pedramkousari/abshar-toolbox/types"
+	"github.com/pedramkousari/abshar-toolbox/helpers"
 )
 
 var current_time = time.Now()
 
-const backaupSqlDir = "./backaupSql"
+const (
+	backaupSqlDir = "./backaupSql"
+)
 
 type updatePackage struct {
-	directory       string
-	composerCommand types.Command
-	migrateCommand  types.Command
-	sqlDumpCommand  types.Command
+	directory string
+	config    *helpers.ConfigService
 }
 
-func UpdatePackage(srcDirectory string, composerCommand types.Command, migrateCommand types.Command, sqlDumpC types.Command) *updatePackage {
+func UpdatePackage(srcDirectory string, cnf *helpers.ConfigService) *updatePackage {
 	if srcDirectory == "" {
 		log.Fatal("src directory not initialized")
 	}
 
 	return &updatePackage{
-		directory:       srcDirectory,
-		composerCommand: composerCommand,
-		migrateCommand:  migrateCommand,
-		sqlDumpCommand: sqlDumpC,
+		directory: srcDirectory,
+		config:    cnf,
 	}
 }
 
@@ -52,17 +50,16 @@ func (cr *updatePackage) Run(ctx context.Context) error {
 	backupFileWithGit(cr.directory, version)
 	progress(2)
 
-	backupDatabase(cr.sqlDumpCommand, cr.directory, information["serviceName"])
+	backupDatabase(cr.directory, information["serviceName"], cr.config)
 	progress(4)
 
-
-	extractTarFile(information["serviceName"],cr.directory)
+	extractTarFile(information["serviceName"], cr.directory)
 	progress(6)
 
-	composerDumpAutoload(cr.composerCommand, cr.directory)
+	composerDumpAutoload(cr.directory, cr.config)
 	progress(8)
 
-	migrateDB(cr.composerCommand, cr.directory)
+	migrateDB(cr.directory, cr.config)
 	progress(10)
 
 	return nil
@@ -73,7 +70,6 @@ func changePermision(dir string) {
 	// cmd := exec.Command("chown", fmt.Sprintf("-R %s.%s %s", "www-data", "www-data", dir))
 
 	// cmd.
-
 
 	// if err != nil {
 	// 	fmt.Println(res)
@@ -87,13 +83,13 @@ func changePermision(dir string) {
 		return
 	}
 
-	uid,err := strconv.Atoi(u.Uid)
-	if err!=nil {
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
 		panic(err)
 	}
 
-	gid,err := strconv.Atoi(u.Gid)
-	if err!=nil {
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
 		panic(err)
 	}
 
@@ -115,11 +111,11 @@ func changePermision(dir string) {
 
 }
 
-func backupFileWithGit(dir string, version string){
+func backupFileWithGit(dir string, version string) {
 	var output []byte
 	stdOut := bytes.NewBuffer(output)
 
-	cmd := exec.Command("git", "diff" , "--name-only")
+	cmd := exec.Command("git", "diff", "--name-only")
 	cmd.Dir = dir
 	cmd.Stdout = stdOut
 
@@ -136,21 +132,20 @@ func backupFileWithGit(dir string, version string){
 }
 
 func createBranch(dir string, version string) {
-	cmd := exec.Command("git",strings.Fields(fmt.Sprintf("checkout -b patch-before-update-%s-%d", version, current_time.Unix()))...)
-	
+	cmd := exec.Command("git", strings.Fields(fmt.Sprintf("checkout -b patch-before-update-%s-%d", version, current_time.Unix()))...)
+
 	cmd.Stdout = nil
 
 	cmd.Dir = dir
-	if err := cmd.Run();err != nil {
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 }
 
-
 func gitAdd(dir string, version string) {
 	cmd := exec.Command("git", "add", ".")
 	cmd.Dir = dir
-	if _, err := cmd.Output();err != nil {
+	if _, err := cmd.Output(); err != nil {
 		panic(err)
 	}
 }
@@ -165,33 +160,31 @@ func gitCommit(dir string, version string) {
 
 	cmd := exec.Command("git", "config", "--global", "user.email", "persianped@gmail.com")
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run();err != nil {
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 
 	cmd = exec.Command("git", "config", "--global", "user.name", "pedram kousari")
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run();err != nil {
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 
-
-	cmd = exec.Command("git", "config", "--global", "--add","safe.directory", dir)
+	cmd = exec.Command("git", "config", "--global", "--add", "safe.directory", dir)
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run();err != nil {
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
-
 
 	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("backup befor update patch %s time: %d", version, current_time.Unix()))
 	cmd.Stderr = os.Stderr
 	cmd.Dir = dir
-	if err := cmd.Run();err != nil {
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 }
 
-func backupDatabase(mc types.Command, directory string, serviceName string) {
+func backupDatabase(dir string, serviceName string, cnf *helpers.ConfigService) {
 	err := os.Mkdir(backaupSqlDir, 0755)
 	if err != nil {
 		if os.IsExist(err) {
@@ -201,7 +194,6 @@ func backupDatabase(mc types.Command, directory string, serviceName string) {
 		}
 	}
 
-
 	sqlFileName := fmt.Sprintf("%s-%d.sql", serviceName, current_time.Unix())
 	file, err := os.Create(backaupSqlDir + "/" + sqlFileName)
 	if err != nil {
@@ -209,19 +201,12 @@ func backupDatabase(mc types.Command, directory string, serviceName string) {
 	}
 	defer file.Close()
 
-
-	var command string
-	if mc.Type == types.DockerCommandType {
-		command = fmt.Sprintf(`docker exec %s %s`, mc.Container, mc.Cmd)
-	} else {
-		command = mc.Cmd
-	}
-
-	cmd := exec.Command("sh", "-c", command)
+	command := getCommand(dumpCommand, cnf)
+	cmd := exec.Command("sh", "-c", strings.Join(command, " "))
 	cmd.Stdout = file
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
-	cmd.Dir = directory
+	cmd.Dir = dir
 
 	err = cmd.Run()
 	if err != nil {
@@ -229,16 +214,16 @@ func backupDatabase(mc types.Command, directory string, serviceName string) {
 	}
 }
 
-func extractTarFile(serviceName string, dir string){
+func extractTarFile(serviceName string, dir string) {
 	cmd := exec.Command("tar", "-zxf", "./temp/"+serviceName+".tar.gz", "-C", dir)
 	cmd.Stderr = os.Stderr
-	
-	if err := cmd.Run();err != nil {
+
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 }
 
-func composerDumpAutoload(cc types.Command, dir string){
+func composerDumpAutoload(dir string, cnf *helpers.ConfigService) {
 
 	err := os.Setenv("HOME", "/tmp")
 	if err != nil {
@@ -246,12 +231,7 @@ func composerDumpAutoload(cc types.Command, dir string){
 		return
 	}
 
-	var command []string
-	if cc.Type == types.DockerCommandType {
-		command = strings.Fields(fmt.Sprintf("docker exec %s %s", cc.Container, cc.Cmd))
-	} else {
-		command = strings.Fields(cc.Cmd)
-	}
+	var command []string = getCommand(composerDumpCommand, cnf)
 
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = dir
@@ -262,24 +242,16 @@ func composerDumpAutoload(cc types.Command, dir string){
 	}
 }
 
-func migrateDB(mc types.Command, dir string){
-
-	var command []string
-	if mc.Type == types.DockerCommandType {
-		command = strings.Fields(fmt.Sprintf("docker exec %s %s", mc.Container, mc.Cmd))
-	} else {
-		command = strings.Fields(mc.Cmd)
-	}
+func migrateDB(dir string, cnf *helpers.ConfigService) {
+	var command []string = getCommand(migrateCommand, cnf)
 
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = dir
 
-	
-	if err := cmd.Run();err != nil {
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 }
-
 
 // func runConfig(ct types.CommandType, dir string){
 // 	var command []string

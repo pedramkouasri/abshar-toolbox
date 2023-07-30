@@ -20,10 +20,10 @@ import (
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create PATH_OF_PACKAGE.JSON",
-	Short: "Create PATH_OF_PACKAGE.JSON",
-	Long:  ``,
-	Args:  cobra.ExactArgs(1),
+	Use:                   "create PATH_OF_PACKAGE.JSON",
+	Short:                 "Create PATH_OF_PACKAGE.JSON",
+	Long:                  ``,
+	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		packagePathFile := args[0]
@@ -58,19 +58,16 @@ var createCmd = &cobra.Command{
 				// defer wg.Done()
 
 				directory := viper.GetString(fmt.Sprintf("patch.create.%v.directory", pkg.ServiceName))
-				var cc types.Command
-				if err := viper.UnmarshalKey(fmt.Sprintf("patch.create.%v.composer_command", pkg.ServiceName), &cc); err != nil {
-					panic(err)
-				}
+				conf := helpers.LoadEnv(directory)
 
-				ctx := context.WithValue(context.Background(), "serviceName", packagex.ServiceName)
-				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, cc).Run(ctx)
+				ctx := context.WithValue(context.Background(), "serviceName", pkg.ServiceName)
+				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, conf).Run(ctx)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				newPath := strings.ReplaceAll(path,"patch", packagex.ServiceName)
-				if err:= os.Rename(path, newPath); err!=nil {
+				newPath := strings.ReplaceAll(path, "patch", packagex.ServiceName)
+				if err := os.Rename(path, newPath); err != nil {
 					log.Fatal(err)
 				}
 
