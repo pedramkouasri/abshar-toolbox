@@ -5,3 +5,5 @@ patch:
   update:
     baadbaan:
       directory: /home/pedram/baadbaan-docker/baadbaan_new
+
+    docker-compose-directory: /home/pedram/baadbaan-docker

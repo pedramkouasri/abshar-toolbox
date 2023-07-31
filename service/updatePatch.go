@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/pedramkousari/abshar-toolbox/helpers"
+	"github.com/pedramkousari/abshar-toolbox/types"
+	"github.com/spf13/viper"
 )
 
 var current_time = time.Now()
@@ -43,6 +45,9 @@ func (cr *updatePackage) Run(ctx context.Context) error {
 	version := information["version"]
 	progress := loading(information["serviceName"])
 	progress(0)
+
+	backupDatabase(cr.directory, information["serviceName"], cr.config)
+	os.Exit(1)
 
 	changePermision(cr.directory)
 	progress(1)
@@ -96,6 +101,15 @@ func changePermision(dir string) {
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+
+		fi, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return nil
 		}
 
 		if err = os.Chown(path, uid, gid); err != nil {
@@ -201,12 +215,29 @@ func backupDatabase(dir string, serviceName string, cnf *helpers.ConfigService) 
 	}
 	defer file.Close()
 
-	command := getCommand(dumpCommand, cnf)
-	cmd := exec.Command("sh", "-c", strings.Join(command, " "))
+	host, _ := cnf.Get("DB_HOST")
+	port, _ := cnf.Get("DB_PORT")
+	datbase, _ := cnf.Get("DB_DATABASE")
+	username, _ := cnf.Get("DB_USERNAME")
+	password, _ := cnf.Get("DB_PASSWORD")
+	sqlCommand := fmt.Sprintf(sqlDumpCommand, username, password, host, port, datbase)
+
+	commandType := getCommandType(cnf)
+
+	var command []string
+	if commandType == types.DockerCommandType {
+		composeDir := viper.GetString("patch.update.docker-compose-directory") + "/docker-compose.yaml"
+		command = strings.Fields(fmt.Sprintf(`docker compose -f %s run --rm %s %s`, composeDir, host, sqlCommand))
+	} else {
+		command = strings.Fields(sqlCommand)
+	}
+
+	cmd := exec.Command(command[0], command[1:]...)
+	// cmd := exec.Command("sh", "-c", strings.Join(command, " "))
+
 	cmd.Stdout = file
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = os.Stderr
-	cmd.Dir = dir
+	// cmd.Stdin = os.Stdin
+	// cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
 	if err != nil {
