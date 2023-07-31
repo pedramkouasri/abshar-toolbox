@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pedramkousari/abshar-toolbox/db"
 	"github.com/pedramkousari/abshar-toolbox/helpers"
 	"github.com/pedramkousari/abshar-toolbox/service"
 	"github.com/pedramkousari/abshar-toolbox/types"
@@ -72,6 +73,10 @@ func UpdateCommand(fileSrc string) {
 	}
 
 	diffPackages := service.GetPackageDiff(pkg)
+	serviceCount := len(diffPackages)
+
+	store := db.NewBoltDB()
+	defer store.Close()
 
 	var wg sync.WaitGroup
 	for _, packagex := range diffPackages {
@@ -88,7 +93,7 @@ func UpdateCommand(fileSrc string) {
 			})
 
 			conf := helpers.LoadEnv(directory)
-			err := service.UpdatePackage(directory, conf).Run(ctx)
+			err := service.UpdatePackage(directory, conf).Run(ctx, loading(packagex.ServiceName, serviceCount, store))
 			if err != nil {
 				log.Fatal(err)
 			}

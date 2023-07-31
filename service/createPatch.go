@@ -94,22 +94,8 @@ func (cr *createPackage) GenerateDiffJson() {
 	}
 }
 
-func loading(serviceName string) func(state int) {
-	return func(state int) {
-		fmt.Print("\r", serviceName, ":[")
-		for j := 0; j <= state; j++ {
-			fmt.Print("=")
-		}
-		for j := state + 1; j <= 10; j++ {
-			fmt.Print(" ")
-		}
-		fmt.Print("] ", state*10, "%")
-	}
-}
-
-func (cr *createPackage) Run(ctx context.Context) (string, error) {
+func (cr *createPackage) Run(ctx context.Context, progress func(state int)) (string, error) {
 	// fmt.Println("Started ...")
-	progress := loading(ctx.Value("serviceName").(string))
 
 	progress(0)
 

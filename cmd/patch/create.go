@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pedramkousari/abshar-toolbox/db"
 	"github.com/pedramkousari/abshar-toolbox/helpers"
 	"github.com/pedramkousari/abshar-toolbox/service"
 	"github.com/pedramkousari/abshar-toolbox/types"
@@ -50,6 +51,8 @@ var createCmd = &cobra.Command{
 		ch := make(chan string, len(diffPackages))
 		var pathes []string = []string{packagePathFile}
 
+		serviceCount := len(diffPackages)
+
 		// var wg sync.WaitGroup;
 		for _, packagex := range diffPackages {
 			// wg.Add(1)
@@ -61,7 +64,7 @@ var createCmd = &cobra.Command{
 				conf := helpers.LoadEnv(directory)
 
 				ctx := context.WithValue(context.Background(), "serviceName", pkg.ServiceName)
-				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, conf).Run(ctx)
+				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, conf).Run(ctx, loading(pkg.ServiceName, serviceCount, nil))
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -125,4 +128,33 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func loading(serviceName string, serviceCount int, store *db.BoltDB) func(state int) {
+	process := 0
+
+	patchId := "1"
+
+	if store != nil {
+		store.Set(fmt.Sprintf(db.Format, patchId, db.Processed), []byte(string(process)))
+		store.Set(fmt.Sprintf(db.Format, patchId, db.IsCompleted), []byte{0})
+		store.Set(fmt.Sprintf(db.Format, patchId, db.HasError), []byte{0})
+		store.Set(fmt.Sprintf(db.Format, patchId, db.ErrorMessage), []byte{})
+	}
+
+	return func(state int) {
+		fmt.Print("\r", serviceName, ":[")
+		for j := 0; j <= state; j++ {
+			fmt.Print("=")
+		}
+		for j := state + 1; j <= 10; j++ {
+			fmt.Print(" ")
+		}
+		fmt.Print("] ", state*10, "%")
+
+		if store != nil {
+			process += state * (10 / serviceCount)
+			store.Set(fmt.Sprintf(db.Format, patchId, db.Processed), []byte(string(process)))
+		}
+	}
 }

@@ -40,14 +40,11 @@ func UpdatePackage(srcDirectory string, cnf *helpers.ConfigService) *updatePacka
 	}
 }
 
-func (cr *updatePackage) Run(ctx context.Context) error {
+func (cr *updatePackage) Run(ctx context.Context, progress func(state int)) error {
 	information := ctx.Value("information").(map[string]string)
 	version := information["version"]
-	progress := loading(information["serviceName"])
-	progress(0)
 
-	backupDatabase(cr.directory, information["serviceName"], cr.config)
-	os.Exit(1)
+	progress(0)
 
 	changePermision(cr.directory)
 	progress(1)
@@ -278,6 +275,8 @@ func migrateDB(dir string, cnf *helpers.ConfigService) {
 
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = dir
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 
 	if err := cmd.Run(); err != nil {
 		panic(err)

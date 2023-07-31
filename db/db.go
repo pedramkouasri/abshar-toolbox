@@ -15,6 +15,14 @@ type BoltDB struct {
 	db *bolt.DB
 }
 
+const (
+	Format       = "PATCH-ID-%s-%s"
+	IsCompleted  = "IS_COMPLETED"
+	HasError     = "HAS_ERROR"
+	Processed    = "PROCESSED"
+	ErrorMessage = "ERROR_MESSAGE"
+)
+
 func NewBoltDB() *BoltDB {
 	db, err := bolt.Open("my.db", 0600, nil)
 	if err != nil {
@@ -32,7 +40,7 @@ func (b *BoltDB) Close() {
 	b.db.Close()
 }
 
-func (b *BoltDB) Put(key string, val []byte) error {
+func (b *BoltDB) Set(key string, val []byte) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bu, err := tx.CreateBucketIfNotExists([]byte(bucket))
 		if err != nil {
@@ -54,7 +62,6 @@ func (b *BoltDB) Get(key string) []byte {
 		bu := tx.Bucket([]byte(bucket))
 
 		value = bu.Get([]byte(key))
-
 		return nil
 	})
 
