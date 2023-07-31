@@ -250,15 +250,23 @@ func composerChanged() bool {
 }
 
 func composerInstall(directory string, cnf *helpers.ConfigService) {
-
-	command := getCommand(composerInstallCommand, cnf)
-	cmd := exec.Command(command[0], command[1:]...)
-	// cmd.Stdout = nil
+	safeCommand := getCommand(gitSafeDirectory, cnf)
+	cmd := exec.Command(safeCommand[0], safeCommand[1:]...)
+	// cmd.Stdout = os.Stdout
 	// cmd.Stderr = os.Stderr
 	cmd.Dir = directory
 
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
+
+	command := getCommand(composerInstallCommand, cnf)
+	cmd = exec.Command(command[0], command[1:]...)
+	// cmd.Stdout = os.Stdout
+	// cmd.Stderr = os.Stderr
+	cmd.Dir = directory
+
+	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
 }
@@ -322,11 +330,11 @@ func createTempDirectory(directory string) {
 }
 
 func getCommand(cmd string, cnf *helpers.ConfigService) []string {
-	containerName, _ := cnf.Get("CONTAINER_NAME")
 	commandType := getCommandType(cnf)
 
 	var command []string
 	if commandType == types.DockerCommandType {
+		containerName, _ := cnf.Get("CONTAINER_NAME")
 		command = strings.Fields(fmt.Sprintf("docker exec %s %s", containerName, cmd))
 	} else {
 		command = strings.Fields(cmd)
