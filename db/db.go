@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -16,20 +17,28 @@ type BoltDB struct {
 }
 
 const (
-	Format       = "PATCH-ID-%s-%s"
-	IsCompleted  = "IS_COMPLETED"
-	HasError     = "HAS_ERROR"
-	Processed    = "PROCESSED"
-	ErrorMessage = "ERROR_MESSAGE"
+	Format      = "PATCH-NAME-%s-%s"
+	IsCompleted = "IS_COMPLETED"
+	IsFailed    = "IS_FAILED"
+	MessageFail = "MESSAGE_FAIL"
+	Percent     = "PERCENT"
+	State       = "STATE"
 )
 
-func NewBoltDB() *BoltDB {
-	db, err := bolt.Open("my.db", 0600, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+var instantiated *BoltDB
 
-	return &BoltDB{db}
+var once sync.Once
+
+func NewBoltDB() *BoltDB {
+	once.Do(func() {
+		db, err := bolt.Open("my.db", 0600, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		instantiated = &BoltDB{db}
+	})
+
+	return instantiated
 }
 
 func (b *BoltDB) Path() string {
@@ -66,4 +75,9 @@ func (b *BoltDB) Get(key string) []byte {
 	})
 
 	return value
+}
+
+func (b *BoltDB) storeError(version string, message string) {
+	b.Set(fmt.Sprintf(Format, version, IsFailed), []byte{1})
+	b.Set(fmt.Sprintf(Format, version, MessageFail), []byte(message))
 }

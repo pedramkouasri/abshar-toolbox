@@ -136,10 +136,11 @@ func loading(serviceName string, serviceCount int, store *db.BoltDB) func(state 
 	patchId := "1"
 
 	if store != nil {
-		store.Set(fmt.Sprintf(db.Format, patchId, db.Processed), []byte(string(process)))
 		store.Set(fmt.Sprintf(db.Format, patchId, db.IsCompleted), []byte{0})
-		store.Set(fmt.Sprintf(db.Format, patchId, db.HasError), []byte{0})
-		store.Set(fmt.Sprintf(db.Format, patchId, db.ErrorMessage), []byte{})
+		store.Set(fmt.Sprintf(db.Format, patchId, db.IsFailed), []byte{0})
+		store.Set(fmt.Sprintf(db.Format, patchId, db.MessageFail), []byte{})
+		store.Set(fmt.Sprintf(db.Format, patchId, db.Percent), []byte(string(process)))
+		store.Set(fmt.Sprintf(db.Format, patchId, db.State), []byte{})
 	}
 
 	return func(state int) {
@@ -154,7 +155,7 @@ func loading(serviceName string, serviceCount int, store *db.BoltDB) func(state 
 
 		if store != nil {
 			process += state * (10 / serviceCount)
-			store.Set(fmt.Sprintf(db.Format, patchId, db.Processed), []byte(string(process)))
+			store.Set(fmt.Sprintf(db.Format, patchId, db.Percent), []byte(string(process)))
 		}
 	}
 }

@@ -39,6 +39,9 @@ var updateCmd = &cobra.Command{
 }
 
 func UpdateCommand(fileSrc string) {
+	explode := strings.Split(fileSrc, "/")
+	version := explode[len(explode)-1]
+
 	if err := os.Mkdir("./temp", 0755); err != nil {
 		if os.IsNotExist(err) {
 			panic(err)
@@ -76,7 +79,6 @@ func UpdateCommand(fileSrc string) {
 	serviceCount := len(diffPackages)
 
 	store := db.NewBoltDB()
-	defer store.Close()
 
 	var wg sync.WaitGroup
 	for _, packagex := range diffPackages {

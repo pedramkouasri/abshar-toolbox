@@ -27,10 +27,10 @@ func information(patchId string) {
 	defer store.Close()
 
 	// p := store.Get(fmt.Sprintf(db.Format, patchId, db.Processed))
-	process := store.Get(fmt.Sprintf(db.Format, patchId, db.Processed))
+	process := store.Get(fmt.Sprintf(db.Format, patchId, db.State))
 	is_complete := store.Get(fmt.Sprintf(db.Format, patchId, db.IsCompleted))
-	hasError := store.Get(fmt.Sprintf(db.Format, patchId, db.HasError))
-	errorMessage := store.Get(fmt.Sprintf(db.Format, patchId, db.ErrorMessage))
+	hasError := store.Get(fmt.Sprintf(db.Format, patchId, db.IsFailed))
+	errorMessage := store.Get(fmt.Sprintf(db.Format, patchId, db.MessageFail))
 
 	fmt.Printf("%v - %v - %v - %v", process[0], is_complete[0], hasError[0], errorMessage)
 }
