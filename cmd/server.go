@@ -40,20 +40,20 @@ func startServer(cmd *cobra.Command) {
 			return
 		}
 
-		w.Write([]byte(fileSrc))
-
-		// if !fileExists(fileSrc) {
-		// 	w.WriteHeader(http.StatusBadRequest)
-		// 	w.Write([]byte("\n file not found!"))
-		// 	return
-		// }
+		if !fileExists(fileSrc) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{
+				"message": "file not exists"
+			}`))
+			return
+		}
 
 		patch.UpdateCommand(fileSrc)
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{
-				"message": "GOOD"
-			}`))
+			"message": "GOOD"
+		}`))
 	})
 
 	http.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +65,7 @@ func startServer(cmd *cobra.Command) {
 		if patchId == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{
-				"message": "path id is required"
+				"message": "patch id is required"
 			}`))
 
 			return
@@ -79,6 +79,14 @@ func startServer(cmd *cobra.Command) {
 		is_complete := store.Get(fmt.Sprintf(db.Format, patchId, db.IsCompleted))
 		hasError := store.Get(fmt.Sprintf(db.Format, patchId, db.HasError))
 		// errorMessage := store.Get(fmt.Sprintf(db.Format, patchId, db.ErrorMessage))
+
+		if len(process) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{
+				"message": "Not Started"
+			}`))
+			return
+		}
 
 		if hasError[0] == 1 {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -105,7 +113,7 @@ func startServer(cmd *cobra.Command) {
 	})
 
 	log.Println("Starting server on http://localhost:9990")
-	log.Fatal(http.ListenAndServe("0.0.0.0:9990", nil))
+	log.Fatal(http.ListenAndServe("localhost:9990", nil))
 }
 
 func fileExists(filename string) bool {
