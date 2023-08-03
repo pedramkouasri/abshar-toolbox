@@ -10,11 +10,22 @@ type CustomLogger struct {
 	errorLogger *log.Logger
 }
 
-func NewCustomLogger() *CustomLogger {
-	return &CustomLogger{
-		infoLogger:  log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime),
-		errorLogger: log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
+var logger *CustomLogger
+
+func init() {
+	logger, _ = NewCustomLogger()
+}
+
+func NewCustomLogger() (*CustomLogger, error) {
+	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
 	}
+
+	return &CustomLogger{
+		infoLogger:  log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile),
+		errorLogger: log.New(file, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
+	}, nil
 }
 
 func (l *CustomLogger) Info(message string) {
@@ -23,4 +34,12 @@ func (l *CustomLogger) Info(message string) {
 
 func (l *CustomLogger) Error(err error) {
 	l.errorLogger.Println(err)
+}
+
+func Info(message string) {
+	logger.infoLogger.Println(message)
+}
+
+func Error(err error) {
+	logger.errorLogger.Println(err)
 }

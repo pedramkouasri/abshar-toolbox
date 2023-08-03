@@ -6,6 +6,7 @@ package patch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/pedramkousari/abshar-toolbox/db"
 	"github.com/pedramkousari/abshar-toolbox/helpers"
+	"github.com/pedramkousari/abshar-toolbox/logger"
 	"github.com/pedramkousari/abshar-toolbox/service"
 	"github.com/pedramkousari/abshar-toolbox/types"
 	"github.com/spf13/cobra"
@@ -34,37 +36,41 @@ var updateCmd = &cobra.Command{
 			log.Fatal("File Not Exists is Path: %s", fileSrc)
 		}
 
-		UpdateCommand(fileSrc)
+		explode := strings.Split(fileSrc, "/")
+		version := explode[len(explode)-1]
+		db.StoreInit(version)
+		logger.Info("Started")
+
+		if err := UpdateCommand(fileSrc); err != nil {
+			logger.Error(err)
+		}
 	},
 }
 
-func UpdateCommand(fileSrc string) {
-	explode := strings.Split(fileSrc, "/")
-	version := explode[len(explode)-1]
-
+func UpdateCommand(fileSrc string) error {
 	if err := os.Mkdir("./temp", 0755); err != nil {
 		if os.IsNotExist(err) {
-			panic(err)
+			return fmt.Errorf("create directory err: %s", err)
 		}
 	}
 
 	if err := helpers.DecryptFile([]byte(key), fileSrc, strings.TrimSuffix(fileSrc, ".enc")); err != nil {
-		panic(err)
+		return fmt.Errorf("Decrypt File err: %s", err)
 	}
 
 	if err := helpers.UntarGzip(strings.TrimSuffix(fileSrc, ".enc"), "./temp"); err != nil {
-		panic(err)
+		return fmt.Errorf("Decrypt File err: %s", err)
 	}
 
 	packagePathFile := "./temp/package.json"
 
 	if _, err := os.Stat(packagePathFile); err != nil {
-		panic(err)
+		return fmt.Errorf("package.json is err: %s", err)
 	}
 
 	file, err := os.Open(packagePathFile)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("open package.json is err: %s", err)
 	}
 
 	pkg := []types.Packages{}
@@ -72,15 +78,15 @@ func UpdateCommand(fileSrc string) {
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&pkg)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("decode package.json is err: %s", err)
 	}
 
 	diffPackages := service.GetPackageDiff(pkg)
 	serviceCount := len(diffPackages)
 
-	store := db.NewBoltDB()
-
 	var wg sync.WaitGroup
+	errCh := make(chan error)
+
 	for _, packagex := range diffPackages {
 		wg.Add(1)
 
@@ -90,35 +96,37 @@ func UpdateCommand(fileSrc string) {
 			directory := viper.GetString(fmt.Sprintf("patch.update.%v.directory", pkg.ServiceName))
 
 			ctx := context.WithValue(context.Background(), "information", map[string]string{
-				"version":     packagex.PackageName2,
-				"serviceName": packagex.ServiceName,
+				"version":     pkg.PackageName2,
+				"serviceName": pkg.ServiceName,
 			})
 
 			conf := helpers.LoadEnv(directory)
-			err := service.UpdatePackage(directory, conf).Run(ctx, loading(packagex.ServiceName, serviceCount, store))
+			err := service.UpdatePackage(directory, conf).Run(ctx, loading(pkg.ServiceName, serviceCount, true))
 			if err != nil {
-				log.Fatal(err)
+				errCh <- err
 			}
 
 		}(packagex)
 
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
 
-	fmt.Println("\nCompleted :)")
+	concatErrors := ""
+	for err := range errCh {
+		concatErrors += err.Error()
+	}
+
+	if concatErrors != "" {
+		return errors.New(concatErrors)
+	}
+
+	return nil
 }
 
 func init() {
 	PatchCmd.AddCommand(updateCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// updateCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// updateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

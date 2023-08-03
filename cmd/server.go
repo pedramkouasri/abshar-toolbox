@@ -9,6 +9,7 @@ import (
 
 	"github.com/pedramkousari/abshar-toolbox/cmd/patch"
 	"github.com/pedramkousari/abshar-toolbox/db"
+	"github.com/pedramkousari/abshar-toolbox/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -61,7 +62,12 @@ func startServer(cmd *cobra.Command) {
 			return
 		}
 
-		patch.UpdateCommand(fileSrc)
+		db.StoreInit(version)
+		logger.Info("Started")
+
+		if err := patch.UpdateCommand(fileSrc); err != nil {
+			logger.Error(err)
+		}
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{

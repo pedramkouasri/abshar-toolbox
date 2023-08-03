@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/user"
@@ -30,44 +29,73 @@ type updatePackage struct {
 }
 
 func UpdatePackage(srcDirectory string, cnf *helpers.ConfigService) *updatePackage {
-	if srcDirectory == "" {
-		log.Fatal("src directory not initialized")
-	}
-
 	return &updatePackage{
 		directory: srcDirectory,
 		config:    cnf,
 	}
 }
 
-func (cr *updatePackage) Run(ctx context.Context, progress func(state int)) error {
+func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) error {
+	if cr.directory == "" {
+		return fmt.Errorf("src directory not initialized")
+	}
+
 	information := ctx.Value("information").(map[string]string)
 	version := information["version"]
 
-	progress(0)
+	if err := changePermision(cr.directory); err != nil {
+		return fmt.Errorf("Change Permission has Error : %s", err)
+	}
+	progress(types.Process{
+		State:   1,
+		Message: "Changed Permission",
+	})
 
-	changePermision(cr.directory)
-	progress(1)
+	if err := backupFileWithGit(cr.directory, version); err != nil {
+		return fmt.Errorf("Backup File With GIt Failed Error Is: %s", err)
+	}
+	progress(types.Process{
+		State:   2,
+		Message: "Backup File Complete With git",
+	})
 
-	backupFileWithGit(cr.directory, version)
-	progress(2)
+	if err := backupDatabase(cr.directory, information["serviceName"], cr.config); err != nil {
+		return fmt.Errorf("Backup Database Failed Error Is: %s", err)
+	}
+	progress(types.Process{
+		State:   4,
+		Message: "Backup Database Complete",
+	})
 
-	backupDatabase(cr.directory, information["serviceName"], cr.config)
-	progress(4)
+	if err := extractTarFile(information["serviceName"], cr.directory); err != nil {
+		return fmt.Errorf("Extract Tar File Failed Error Is: %s", err)
+	}
+	progress(types.Process{
+		State:   6,
+		Message: "Extracted Tar File",
+	})
 
-	extractTarFile(information["serviceName"], cr.directory)
-	progress(6)
+	if err := composerDumpAutoload(cr.directory, cr.config); err != nil {
+		return fmt.Errorf("Composer Dump Autoload Failed Error Is: %s", err)
+	}
+	progress(types.Process{
+		State:   8,
+		Message: "Composer Dup Autoload complete",
+	})
 
-	composerDumpAutoload(cr.directory, cr.config)
-	progress(8)
+	if err := migrateDB(cr.directory, cr.config); err != nil {
+		return fmt.Errorf("Migrate Database Failed Error Is: %s", err)
+	}
 
-	migrateDB(cr.directory, cr.config)
-	progress(10)
+	progress(types.Process{
+		State:   10,
+		Message: "Migrated Database",
+	})
 
 	return nil
 }
 
-func changePermision(dir string) {
+func changePermision(dir string) error {
 	// fmt.Println(fmt.Sprintf("-R %s.%s %s", "www-data", "www-data", dir))
 	// cmd := exec.Command("chown", fmt.Sprintf("-R %s.%s %s", "www-data", "www-data", dir))
 
@@ -81,18 +109,17 @@ func changePermision(dir string) {
 
 	u, err := user.Lookup(username)
 	if err != nil {
-		fmt.Printf("Error retrieving information for user %s: %s\n", username, err)
-		return
+		return fmt.Errorf("Error retrieving information for user %s: %s\n", username, err)
 	}
 
 	uid, err := strconv.Atoi(u.Uid)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Error retrieving convert uid to string for uid %s: %s\n", u.Uid, err)
 	}
 
 	gid, err := strconv.Atoi(u.Gid)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Error retrieving convert gid to string for gid %s: %s\n", u.Gid, err)
 	}
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -110,19 +137,20 @@ func changePermision(dir string) {
 		}
 
 		if err = os.Chown(path, uid, gid); err != nil {
-			fmt.Printf("Failed to change ownership of %s: %v\n", path, err)
+			return fmt.Errorf("Failed to change ownership of %s: %v\n", path, err)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("walk to filepath error in err  %s\n", err)
 	}
 
+	return nil
 }
 
-func backupFileWithGit(dir string, version string) {
+func backupFileWithGit(dir string, version string) error {
 	var output []byte
 	stdOut := bytes.NewBuffer(output)
 
@@ -132,83 +160,94 @@ func backupFileWithGit(dir string, version string) {
 
 	err := cmd.Run()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Git diff Failed Error is : %v\n", err)
 	}
 
 	if stdOut.Len() > 0 {
-		createBranch(dir, version)
-		gitAdd(dir, version)
-		gitCommit(dir, version)
+		if err := createBranch(dir, version); err != nil {
+			return fmt.Errorf("Create Branch Failed Error is : %v\n", err)
+		}
+		if err := gitAdd(dir, version); err != nil {
+			return fmt.Errorf("Git Add Failed Error is : %v\n", err)
+		}
+		if err := gitCommit(dir, version); err != nil {
+			return fmt.Errorf("Git Commit Failed Error is : %v\n", err)
+		}
 	}
+
+	return nil
 }
 
-func createBranch(dir string, version string) {
+func createBranch(dir string, version string) error {
 	cmd := exec.Command("git", strings.Fields(fmt.Sprintf("checkout -b patch-before-update-%s-%d", version, current_time.Unix()))...)
 
 	cmd.Stdout = nil
 
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func gitAdd(dir string, version string) {
+func gitAdd(dir string, version string) error {
 	cmd := exec.Command("git", "add", ".")
 	cmd.Dir = dir
 	if _, err := cmd.Output(); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func gitCommit(dir string, version string) {
+func gitCommit(dir string, version string) error {
 
 	err := os.Setenv("HOME", "/tmp")
 	if err != nil {
-		fmt.Println("Error setting environment variable:", err)
-		return
+		return fmt.Errorf("Error setting environment variable: %v", err)
 	}
 
 	cmd := exec.Command("git", "config", "--global", "user.email", "persianped@gmail.com")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return fmt.Errorf("Git set config Email Failed Error Is: %v", err)
 	}
 
 	cmd = exec.Command("git", "config", "--global", "user.name", "pedram kousari")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return fmt.Errorf("Git set config UserName Failed Error Is: %v", err)
 	}
 
 	cmd = exec.Command("git", "config", "--global", "--add", "safe.directory", dir)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return fmt.Errorf("Git Set Safe Directory Failed Error Is: %v", err)
 	}
 
 	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("backup befor update patch %s time: %d", version, current_time.Unix()))
 	cmd.Stderr = os.Stderr
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return fmt.Errorf("Git Commit Backup is Failed Err is: %v", err)
 	}
+
+	return nil
 }
 
-func backupDatabase(dir string, serviceName string, cnf *helpers.ConfigService) {
+func backupDatabase(dir string, serviceName string, cnf *helpers.ConfigService) error {
 	err := os.Mkdir(backaupSqlDir, 0755)
 	if err != nil {
 		if os.IsExist(err) {
 			// fmt.Println("The directory named", backaupSqlDir, "exists")
 		} else {
-			log.Fatalln(err)
+			return fmt.Errorf("Create backaupSql Directory Failed error is: %v", err)
 		}
 	}
 
 	sqlFileName := fmt.Sprintf("%s-%d.sql", serviceName, current_time.Unix())
 	file, err := os.Create(backaupSqlDir + "/" + sqlFileName)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Create sql fileFailed error is: %v", err)
 	}
 	defer file.Close()
 
@@ -238,25 +277,27 @@ func backupDatabase(dir string, serviceName string, cnf *helpers.ConfigService) 
 
 	err = cmd.Run()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Dump sql Failed error is: %v", err)
 	}
+
+	return nil
 }
 
-func extractTarFile(serviceName string, dir string) {
+func extractTarFile(serviceName string, dir string) error {
 	cmd := exec.Command("tar", "-zxf", "./temp/"+serviceName+".tar.gz", "-C", dir)
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func composerDumpAutoload(dir string, cnf *helpers.ConfigService) {
+func composerDumpAutoload(dir string, cnf *helpers.ConfigService) error {
 
 	err := os.Setenv("HOME", "/tmp")
 	if err != nil {
-		fmt.Println("Error setting environment variable:", err)
-		return
+		return fmt.Errorf("Error setting environment variable : %v", err)
 	}
 
 	var command []string = getCommand(composerDumpCommand, cnf)
@@ -266,11 +307,12 @@ func composerDumpAutoload(dir string, cnf *helpers.ConfigService) {
 
 	err = cmd.Run()
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func migrateDB(dir string, cnf *helpers.ConfigService) {
+func migrateDB(dir string, cnf *helpers.ConfigService) error {
 	var command []string = getCommand(migrateCommand, cnf)
 
 	cmd := exec.Command(command[0], command[1:]...)
@@ -279,8 +321,10 @@ func migrateDB(dir string, cnf *helpers.ConfigService) {
 	cmd.Stdout = os.Stdout
 
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 // func runConfig(ct types.CommandType, dir string){

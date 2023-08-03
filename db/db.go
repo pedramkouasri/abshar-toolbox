@@ -16,15 +16,6 @@ type BoltDB struct {
 	db *bolt.DB
 }
 
-const (
-	Format      = "PATCH-NAME-%s-%s"
-	IsCompleted = "IS_COMPLETED"
-	IsFailed    = "IS_FAILED"
-	MessageFail = "MESSAGE_FAIL"
-	Percent     = "PERCENT"
-	State       = "STATE"
-)
-
 var instantiated *BoltDB
 
 var once sync.Once
@@ -75,9 +66,4 @@ func (b *BoltDB) Get(key string) []byte {
 	})
 
 	return value
-}
-
-func (b *BoltDB) storeError(version string, message string) {
-	b.Set(fmt.Sprintf(Format, version, IsFailed), []byte{1})
-	b.Set(fmt.Sprintf(Format, version, MessageFail), []byte(message))
 }

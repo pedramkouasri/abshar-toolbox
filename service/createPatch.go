@@ -94,21 +94,21 @@ func (cr *createPackage) GenerateDiffJson() {
 	}
 }
 
-func (cr *createPackage) Run(ctx context.Context, progress func(state int)) (string, error) {
+func (cr *createPackage) Run(ctx context.Context, progress func(types.Process)) (string, error) {
 	// fmt.Println("Started ...")
 
-	progress(0)
+	progress(types.Process{State: 0})
 
 	if err := cr.fetch(); err != nil {
 		return "", err
 	}
 
-	progress(1)
+	progress(types.Process{State: 1})
 
 	if err := cr.getDiffComposer(); err != nil {
 		return "", err
 	}
-	progress(2)
+	progress(types.Process{State: 2})
 	// fmt.Printf("Generated Diff.txt \n")
 
 	// err := os.Chdir(cr.directory)
@@ -117,40 +117,40 @@ func (cr *createPackage) Run(ctx context.Context, progress func(state int)) (str
 	// }
 
 	createTarFile(cr.directory)
-	progress(3)
+	progress(types.Process{State: 3})
 	// fmt.Printf("Created Tar File \n")
 
 	if composerChanged() {
 		// fmt.Printf("Composer Is Change \n")
 
-		progress(4)
+		progress(types.Process{State: 4})
 
 		cr.switchBranch()
 		// fmt.Printf("Branch Swiched  \n")
-		progress(5)
+		progress(types.Process{State: 5})
 
 		composerInstall(cr.directory, cr.config)
 		// fmt.Printf("Composer Installed \n")
 
-		progress(6)
+		progress(types.Process{State: 6})
 		cr.GenerateDiffJson()
 		// fmt.Printf("Generated Diff Package Composer \n")
 
-		progress(7)
+		progress(types.Process{State: 7})
 		addDiffPackageToTarFile(cr.directory)
 		// fmt.Printf("Added Diff Packages To Tar File \n")
 
 	}
 
-	progress(8)
+	progress(types.Process{State: 8})
 
 	copyTarFileToTempDirectory(cr.directory)
 	// fmt.Printf("Moved Tar File \n")
-	progress(9)
+	progress(types.Process{State: 9})
 
 	gzipTarFile()
 	// fmt.Printf("GZiped Tar File \n")
-	progress(10)
+	progress(types.Process{State: 10})
 
 	return tempDir + "/patch.tar.gz", nil
 }
