@@ -22,7 +22,6 @@ var store PackageStore
 
 func init() {
 	dbs := NewBoltDB()
-	defer dbs.Close()
 
 	store = PackageStore{
 		version: "",
@@ -33,6 +32,11 @@ func init() {
 func StoreError(err error) {
 	store.storeError(err)
 }
+
+func StoreSuccess() {
+	store.storeSuccess()
+}
+
 func StoreInfo(message string) {
 	store.storeInfo(message)
 }
@@ -51,6 +55,11 @@ func (pdb *PackageStore) setVersion(version string) {
 func (pdb *PackageStore) storeError(err error) {
 	pdb.db.Set(fmt.Sprintf(Format, pdb.version, IsFailed), []byte{1})
 	pdb.db.Set(fmt.Sprintf(Format, pdb.version, MessageFail), []byte(err.Error()))
+}
+
+func (pdb *PackageStore) storeSuccess() {
+	pdb.db.Set(fmt.Sprintf(Format, pdb.version, IsCompleted), []byte{1})
+	pdb.db.Set(fmt.Sprintf(Format, pdb.version, State), []byte("Completed :)"))
 }
 
 func (pdb *PackageStore) storeInfo(message string) {

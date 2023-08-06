@@ -54,13 +54,18 @@ func UpdateCommand(fileSrc string) error {
 		}
 	}
 
+	logger.Info("Created Temp Directory")
+
 	if err := helpers.DecryptFile([]byte(key), fileSrc, strings.TrimSuffix(fileSrc, ".enc")); err != nil {
 		return fmt.Errorf("Decrypt File err: %s", err)
 	}
 
+	logger.Info("Decrypted File")
+
 	if err := helpers.UntarGzip(strings.TrimSuffix(fileSrc, ".enc"), "./temp"); err != nil {
-		return fmt.Errorf("Decrypt File err: %s", err)
+		return fmt.Errorf("UnZip File err: %s", err)
 	}
+	logger.Info("UnZiped File")
 
 	packagePathFile := "./temp/package.json"
 
@@ -68,10 +73,13 @@ func UpdateCommand(fileSrc string) error {
 		return fmt.Errorf("package.json is err: %s", err)
 	}
 
+	logger.Info("Exists package.json")
+
 	file, err := os.Open(packagePathFile)
 	if err != nil {
 		return fmt.Errorf("open package.json is err: %s", err)
 	}
+	logger.Info("Opened package.json")
 
 	pkg := []types.Packages{}
 
@@ -81,8 +89,9 @@ func UpdateCommand(fileSrc string) error {
 		return fmt.Errorf("decode package.json is err: %s", err)
 	}
 
+	logger.Info("Decode package.json")
+
 	diffPackages := service.GetPackageDiff(pkg)
-	serviceCount := len(diffPackages)
 
 	var wg sync.WaitGroup
 	errCh := make(chan error)
@@ -101,7 +110,7 @@ func UpdateCommand(fileSrc string) error {
 			})
 
 			conf := helpers.LoadEnv(directory)
-			err := service.UpdatePackage(directory, conf).Run(ctx, loading(pkg.ServiceName, serviceCount, true))
+			err := service.UpdatePackage(directory, conf).Run(ctx, loading(pkg.ServiceName, true))
 			if err != nil {
 				errCh <- err
 			}

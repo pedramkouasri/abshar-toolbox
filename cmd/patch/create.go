@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/pedramkousari/abshar-toolbox/db"
@@ -19,6 +20,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var mapProcess = map[string]int{}
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
@@ -52,8 +55,6 @@ var createCmd = &cobra.Command{
 		ch := make(chan string, len(diffPackages))
 		var pathes []string = []string{packagePathFile}
 
-		serviceCount := len(diffPackages)
-
 		// var wg sync.WaitGroup;
 		for _, packagex := range diffPackages {
 			// wg.Add(1)
@@ -65,7 +66,7 @@ var createCmd = &cobra.Command{
 				conf := helpers.LoadEnv(directory)
 
 				ctx := context.WithValue(context.Background(), "serviceName", pkg.ServiceName)
-				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, conf).Run(ctx, loading(pkg.ServiceName, serviceCount, false))
+				path, err := service.CreatePackage(directory, pkg.PackageName1, pkg.PackageName2, conf).Run(ctx, loading(pkg.ServiceName, false))
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -122,26 +123,55 @@ func init() {
 	PatchCmd.AddCommand(createCmd)
 }
 
-func loading(serviceName string, serviceCount int, store bool) func(types.Process) {
-	process := 0
+func loading(serviceName string, store bool) func(types.Process) {
+	mapProcess[serviceName] = 0
 
 	return func(p types.Process) {
-		fmt.Print("\r", serviceName, ":[")
-		for j := 0; j <= p.State; j++ {
-			fmt.Print("=")
-		}
-		for j := p.State + 1; j <= 10; j++ {
-			fmt.Print(" ")
-		}
-		fmt.Print("] ", p.State*10, "%")
+		mapProcess[serviceName] = p.State
 
-		process += p.State * (10 / serviceCount)
+		printProcess()
+
 		if store {
+			process := calcPercent()
 			db.StorePercent(fmt.Sprint(process))
+
 			if p.Message != "" {
 				db.StoreInfo(p.Message)
 				logger.Info(fmt.Sprintf("percent and message is %d:%s", process, p.Message))
 			}
 		}
 	}
+}
+
+func printProcess() {
+	cmdy := exec.Command("clear") //Linux example, its tested
+	cmdy.Stdout = os.Stdout
+	cmdy.Run()
+
+	for serviceName, state := range mapProcess {
+		fmt.Print(serviceName, ":[")
+		for j := 0; j <= state; j++ {
+			fmt.Print("=")
+		}
+		for j := state + 1; j <= 100; j++ {
+			fmt.Print(" ")
+		}
+		fmt.Print("] %", state)
+		fmt.Println()
+	}
+}
+
+func calcPercent() int {
+	sum := 0
+	cnt := 0
+	for _, state := range mapProcess {
+		cnt++
+		sum += state
+	}
+
+	if cnt == 0 {
+		return 0
+	}
+
+	return int(sum / cnt)
 }

@@ -47,7 +47,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Change Permission has Error : %s", err)
 	}
 	progress(types.Process{
-		State:   1,
+		State:   10,
 		Message: "Changed Permission",
 	})
 
@@ -55,7 +55,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Backup File With GIt Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   2,
+		State:   20,
 		Message: "Backup File Complete With git",
 	})
 
@@ -63,7 +63,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Backup Database Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   4,
+		State:   40,
 		Message: "Backup Database Complete",
 	})
 
@@ -71,7 +71,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Extract Tar File Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   6,
+		State:   60,
 		Message: "Extracted Tar File",
 	})
 
@@ -79,7 +79,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Composer Dump Autoload Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   8,
+		State:   80,
 		Message: "Composer Dup Autoload complete",
 	})
 
@@ -88,7 +88,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 	}
 
 	progress(types.Process{
-		State:   10,
+		State:   100,
 		Message: "Migrated Database",
 	})
 
@@ -318,7 +318,7 @@ func migrateDB(dir string, cnf *helpers.ConfigService) error {
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	// cmd.Stdout = os.Stdout
 
 	if err := cmd.Run(); err != nil {
 		return err

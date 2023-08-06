@@ -65,9 +65,15 @@ func startServer(cmd *cobra.Command) {
 		db.StoreInit(version)
 		logger.Info("Started")
 
-		if err := patch.UpdateCommand(fileSrc); err != nil {
-			logger.Error(err)
-		}
+		go func() {
+			logger.Info("Run Go Routine")
+			if err := patch.UpdateCommand(fileSrc); err != nil {
+				logger.Error(err)
+				return
+			}
+
+			db.StoreSuccess()
+		}()
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{
@@ -77,17 +83,17 @@ func startServer(cmd *cobra.Command) {
 
 	http.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
 		queryParams := r.URL.Query()
-		patchId := queryParams.Get("patch-id")
+		version := queryParams.Get("version")
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if patchId == "" {
+		if version == "" {
 			w.WriteHeader(http.StatusBadRequest)
 
 			err := json.NewEncoder(w).Encode(&ResponseServer{
 				IsCompleted: false,
 				IsFailed:    true,
-				MessageFail: "patch id is required",
+				MessageFail: "version is required",
 				Percent:     "0",
 				State:       "",
 			})
@@ -102,12 +108,11 @@ func startServer(cmd *cobra.Command) {
 		store := db.NewBoltDB()
 
 		// p := store.Get(fmt.Sprintf(db.Format, patchId, db.Processed))
-		percent := store.Get(fmt.Sprintf(db.Format, patchId, db.Percent))
-		fmt.Println(percent)
-		isComplete := store.Get(fmt.Sprintf(db.Format, patchId, db.IsCompleted))
-		isFailed := store.Get(fmt.Sprintf(db.Format, patchId, db.IsFailed))
-		messageFail := store.Get(fmt.Sprintf(db.Format, patchId, db.MessageFail))
-		state := store.Get(fmt.Sprintf(db.Format, patchId, db.State))
+		percent := store.Get(fmt.Sprintf(db.Format, version, db.Percent))
+		isComplete := store.Get(fmt.Sprintf(db.Format, version, db.IsCompleted))
+		isFailed := store.Get(fmt.Sprintf(db.Format, version, db.IsFailed))
+		messageFail := store.Get(fmt.Sprintf(db.Format, version, db.MessageFail))
+		state := store.Get(fmt.Sprintf(db.Format, version, db.State))
 
 		if len(percent) == 0 {
 			w.WriteHeader(http.StatusOK)
@@ -124,6 +129,12 @@ func startServer(cmd *cobra.Command) {
 			return
 		}
 
+		if isFailed[0] == 1 {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+
 		res := ResponseServer{
 			IsCompleted: isComplete[0] == 1,
 			IsFailed:    isFailed[0] == 1,
@@ -135,14 +146,6 @@ func startServer(cmd *cobra.Command) {
 		if err := json.NewEncoder(w).Encode(&res); err != nil {
 			panic(err)
 		}
-
-		if isFailed[0] == 1 {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-
 	})
 
 	log.Println("Starting server on http://localhost:9990")
