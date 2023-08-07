@@ -55,7 +55,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Backup File With GIt Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   20,
+		State:   30,
 		Message: "Backup File Complete With git",
 	})
 
@@ -71,7 +71,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Extract Tar File Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   60,
+		State:   50,
 		Message: "Extracted Tar File",
 	})
 
@@ -79,7 +79,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		return fmt.Errorf("Composer Dump Autoload Failed Error Is: %s", err)
 	}
 	progress(types.Process{
-		State:   80,
+		State:   65,
 		Message: "Composer Dup Autoload complete",
 	})
 
@@ -88,8 +88,43 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 	}
 
 	progress(types.Process{
-		State:   100,
+		State:   90,
 		Message: "Migrated Database",
+	})
+
+	if err := viewClear(cr.directory, cr.config); err != nil {
+		return fmt.Errorf("View Clear Failed Error Is: %s", err)
+	}
+
+	progress(types.Process{
+		State:   95,
+		Message: "View Cleared",
+	})
+
+	if err := configClear(cr.directory, cr.config); err != nil {
+		return fmt.Errorf("Config Clear Failed Error Is: %s", err)
+	}
+
+	progress(types.Process{
+		State:   97,
+		Message: "Config Cache Completed",
+	})
+
+	if err := configCache(cr.directory, cr.config); err != nil {
+		return fmt.Errorf("Config Cache Failed Error Is: %s", err)
+	}
+
+	progress(types.Process{
+		State:   98,
+		Message: "Config Cache Completed",
+	})
+
+	if err := changePermision(cr.directory); err != nil {
+		return fmt.Errorf("Change Permission has Error : %s", err)
+	}
+	progress(types.Process{
+		State:   100,
+		Message: "Changed Permission",
 	})
 
 	return nil
@@ -327,21 +362,47 @@ func migrateDB(dir string, cnf *helpers.ConfigService) error {
 	return nil
 }
 
-// func runConfig(ct types.CommandType, dir string){
-// 	var command []string
-// 	if ct.Type == types.DockerCommandType {
-// 		command = strings.Fields(fmt.Sprintf("docker exec %s %s", mc.Container, mc.Cmd))
-// 	} else {
-// 		command = strings.Fields(mc.Cmd)
-// 	}
+func viewClear(dir string, cnf *helpers.ConfigService) error {
+	var command []string = getCommand(viewClearCommand, cnf)
 
-// 	cmd := exec.Command(command[0], command[1:]...)
-// 	cmd.Stdout = file
-// 	cmd.Stderr = os.Stderr
-// 	cmd.Dir = directory
+	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Dir = dir
+	cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
 
-// 	err = cmd.Run()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func configCache(dir string, cnf *helpers.ConfigService) error {
+	var command []string = getCommand(configCacheCommand, cnf)
+
+	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Dir = dir
+	cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func configClear(dir string, cnf *helpers.ConfigService) error {
+	var command []string = getCommand(removeConfig, cnf)
+
+	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Dir = dir
+	cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
