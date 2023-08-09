@@ -130,6 +130,14 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 	return nil
 }
 
+/*
+*
+chown -R www-data:www-data /path/to/your/laravel/root/directory
+sudo find /path/to/your/laravel/root/directory -type f -exec chmod 644 {} \;
+sudo find /path/to/your/laravel/root/directory -type d -exec chmod 755 {} \;
+sudo chgrp -R www-data storage bootstrap/cache
+sudo chmod -R ug+rwx storage bootstrap/cache
+*/
 func changePermision(dir string) error {
 	// fmt.Println(fmt.Sprintf("-R %s.%s %s", "www-data", "www-data", dir))
 	// cmd := exec.Command("chown", fmt.Sprintf("-R %s.%s %s", "www-data", "www-data", dir))
