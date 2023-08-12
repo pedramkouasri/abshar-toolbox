@@ -82,7 +82,7 @@ func (cr *createPackage) GenerateDiffJson() {
 		panic(err)
 	}
 
-	cmd := exec.Command("composer-lock-diff", "--from", "remotes/origin/"+cr.branch1, "--to", "remotes/origin/"+cr.branch2, "--json", "--pretty", "--only-prod")
+	cmd := exec.Command("composer-lock-diff", "--from", cr.branch1, "--to", cr.branch2, "--json", "--pretty", "--only-prod")
 	cmd.Stdout = file
 	// cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -167,7 +167,8 @@ func (cr *createPackage) fetch() error {
 
 func (cr *createPackage) getDiffComposer() error {
 	// git diff --name-only --diff-filter=ACMR {lastTag} {current_tag} > diff.txt'
-	cmd := exec.Command("git", "diff", "--name-only", "--diff-filter", "ACMR", "remotes/origin/"+cr.branch1, "remotes/origin/"+cr.branch2)
+	// fmt.Println("git", "diff", "--name-only", "--diff-filter", "ACMR", "remotes/origin/"+cr.branch1, "remotes/origin/"+cr.branch2)
+	cmd := exec.Command("git", "diff", "--name-only", "--diff-filter", "ACMR", cr.branch1, cr.branch2)
 
 	cmd.Dir = cr.directory
 
