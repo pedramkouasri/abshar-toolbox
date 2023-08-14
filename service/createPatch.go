@@ -25,7 +25,14 @@ type createPackage struct {
 var currentDirectory string
 var tempDir string
 
-var excludePath = []string{".env", "vmanager.json"}
+var excludePath = []string{
+	".env", 
+	"vmanager.json",
+	"database/seeds/ControlTableSeeder.php",
+	"database/seeds/SubControlTableSeeder.php",
+	"database/seeds/MgaChoicesTableSeeder.php",
+	"database/seeds/RmBaseTreatmentCollectionCategorizationTableSeeder.php",
+}
 
 func init() {
 	currentDirectory, _ = os.Getwd()
