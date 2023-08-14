@@ -26,12 +26,12 @@ var currentDirectory string
 var tempDir string
 
 var excludePath = []string{
-	".env", 
+	".env",
 	"vmanager.json",
-	"database/seeds/ControlTableSeeder.php",
-	"database/seeds/SubControlTableSeeder.php",
-	"database/seeds/MgaChoicesTableSeeder.php",
-	"database/seeds/RmBaseTreatmentCollectionCategorizationTableSeeder.php",
+	// "database/seeds/ControlTableSeeder.php",
+	// "database/seeds/SubControlTableSeeder.php",
+	// "database/seeds/MgaChoicesTableSeeder.php",
+	// "database/seeds/RmBaseTreatmentCollectionCategorizationTableSeeder.php",
 }
 
 func init() {
@@ -106,6 +106,10 @@ func (cr *createPackage) Run(ctx context.Context, progress func(types.Process)) 
 
 	progress(types.Process{State: 0})
 
+	cr.removeTag()
+
+	progress(types.Process{State: 5})
+
 	if err := cr.fetch(); err != nil {
 		return "", err
 	}
@@ -160,6 +164,12 @@ func (cr *createPackage) Run(ctx context.Context, progress func(types.Process)) 
 	progress(types.Process{State: 100})
 
 	return tempDir + "/patch.tar.gz", nil
+}
+
+func (cr *createPackage) removeTag() {
+	cmd := exec.Command("git", "tag", "-d", cr.branch2)
+	cmd.Dir = cr.directory
+	cmd.Output()
 }
 
 func (cr *createPackage) fetch() error {
