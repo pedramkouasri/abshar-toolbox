@@ -1,5 +1,6 @@
 package service
 
+// removeConfig           = "find bootstrap/cache/ ! -name '.gitignore' -type f -exec rm -f {} \\;"
 const (
 	composerInstallCommand = "composer install --no-scripts --no-interaction"
 	composerDumpCommand    = "composer dump-autoload --no-interaction"

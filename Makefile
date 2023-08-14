@@ -4,6 +4,10 @@ build:
 build-server: build
 	scp bin/abshar-toolbox root@10.10.10.217:/var/www/abshar/bin
 
+
+build-server-mj: build
+	scp bin/abshar-toolbox root@10.10.10.207:/var/www/html/baadbaan-docker
+
 create:
 	go run main.go patch create ./package.json
 

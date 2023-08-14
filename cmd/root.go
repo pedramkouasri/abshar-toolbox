@@ -38,7 +38,7 @@ func Execute() {
 	}
 }
 
-func addCommands(){
+func addCommands() {
 	rootCmd.AddCommand(patch.PatchCmd)
 	rootCmd.AddCommand(ServerCmd)
 }

@@ -401,16 +401,23 @@ func configCache(dir string, cnf *helpers.ConfigService) error {
 }
 
 func configClear(dir string, cnf *helpers.ConfigService) error {
-	var command []string = getCommand(removeConfig, cnf)
+	err := filepath.Walk(dir+"/bootstrap/cache", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Dir = dir
-	cmd.Stderr = os.Stderr
-	// cmd.Stdout = os.Stdout
+		split := strings.Split(path, "/")
+		if strings.HasSuffix(split[len(split)-1], ".php") {
+			if err := os.Remove(path); err != nil {
+				return fmt.Errorf("remove file error %s", err)
+			}
+		}
 
-	if err := cmd.Run(); err != nil {
-		return err
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("walk to filepath error in err  %s\n", err)
 	}
-
 	return nil
 }
