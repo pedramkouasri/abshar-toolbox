@@ -343,7 +343,14 @@ func composerDumpAutoload(dir string, cnf *helpers.ConfigService) error {
 		return fmt.Errorf("Error setting environment variable : %v", err)
 	}
 
-	var command []string = getCommand(composerDumpCommand, cnf)
+	commandType := getCommandType(cnf)
+
+	var command []string
+	if commandType == types.DockerCommandType {
+		command = getCommand(composerDumpCommand, cnf)
+	} else {
+		command = strings.Fields("php composer.phar --no-interaction")
+	}
 
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = dir
