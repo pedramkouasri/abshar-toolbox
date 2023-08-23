@@ -349,7 +349,7 @@ func composerDumpAutoload(dir string, cnf *helpers.ConfigService) error {
 	if commandType == types.DockerCommandType {
 		command = getCommand(composerDumpCommand, cnf)
 	} else {
-		command = strings.Fields("php composer.phar --no-interaction")
+		command = strings.Fields("php composer.phar dump-autoload --no-interaction")
 	}
 
 	cmd := exec.Command(command[0], command[1:]...)
