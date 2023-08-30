@@ -67,6 +67,10 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 		Message: "Backup Database Complete",
 	})
 
+	if err := configClear(cr.directory, cr.config); err != nil {
+		return fmt.Errorf("Config Clear Failed Error Is: %s", err)
+	}
+
 	if err := extractTarFile(information["serviceName"], cr.directory); err != nil {
 		return fmt.Errorf("Extract Tar File Failed Error Is: %s", err)
 	}
@@ -80,7 +84,7 @@ func (cr *updatePackage) Run(ctx context.Context, progress func(types.Process)) 
 	}
 	progress(types.Process{
 		State:   65,
-		Message: "Composer Dup Autoload complete",
+		Message: "Composer Dump Autoload complete",
 	})
 
 	if err := migrateDB(cr.directory, cr.config); err != nil {
